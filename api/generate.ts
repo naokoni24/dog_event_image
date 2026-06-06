@@ -70,7 +70,7 @@ const VALID_EVENT_IDS = new Set(Object.keys(EVENTS));
 
 // ── レートリミット（インスタンスごと in-memory） ──────────────────────────
 const rateMap = new Map<string, { count: number; resetAt: number }>();
-const RATE_LIMIT = 3;
+const RATE_LIMIT = 15; // 1生成=3並列リクエスト × 5回分
 const RATE_WINDOW = 60_000;
 
 // ── 許可設定 ─────────────────────────────────────────────────────────────
