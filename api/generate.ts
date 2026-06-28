@@ -1,7 +1,9 @@
 import { GoogleGenAI } from "@google/genai";
 import { getRedis, COUNTER_KEY, MONTHLY_KEY } from "./_redis.js";
 
-// ── イベントプロンプト（src/lib/events.ts と同期して管理） ────────────────
+// ── イベントプロンプト（生成の実体）────────────────────────────────────────
+//    実際の生成プロンプトはここで組み立てる。フロントの src/lib/events.ts は
+//    UI 表示用の定義で、生成には使われない（混同しないこと）。
 
 // これは「新規生成」ではなく「元写真の編集」であることを最初に宣言する。
 // モデルは前方のトークンを強く重視するため、識別維持の核を冒頭に置く。
@@ -72,10 +74,15 @@ const EVENTS: Record<string, string[]> = {
 
 const VALID_EVENT_IDS = new Set(Object.keys(EVENTS));
 
-// ── レートリミット（インスタンスごと in-memory） ──────────────────────────
-const rateMap = new Map<string, { count: number; resetAt: number }>();
+// ── レートリミット ────────────────────────────────────────────────────────
+// Redis（全インスタンス共通）で固定ウィンドウ制限。サーバレスは複数インスタンスが
+// 並走するため in-memory だけでは上限をすり抜けられる。Redis 障害時のみ
+// in-memory（インスタンスごと）へフォールバックして保護を完全には失わない。
 const RATE_LIMIT = 15; // 1生成=3並列リクエスト × 5回分
 const RATE_WINDOW = 60_000;
+const RATE_WINDOW_SEC = RATE_WINDOW / 1000;
+
+const rateMap = new Map<string, { count: number; resetAt: number }>();
 
 // ── 許可設定 ─────────────────────────────────────────────────────────────
 const ALLOWED_MIME = new Set([
@@ -96,7 +103,7 @@ function getClientIP(headers: Record<string, string | string[] | undefined>): st
   return (Array.isArray(fwd) ? fwd[0] : fwd?.split(",")[0]?.trim()) ?? "unknown";
 }
 
-function checkRateLimit(ip: string): boolean {
+function checkRateLimitMemory(ip: string): boolean {
   const now = Date.now();
   const entry = rateMap.get(ip);
   if (!entry || now > entry.resetAt) {
@@ -106,6 +113,19 @@ function checkRateLimit(ip: string): boolean {
   if (entry.count >= RATE_LIMIT) return false;
   entry.count++;
   return true;
+}
+
+async function checkRateLimit(ip: string): Promise<boolean> {
+  try {
+    const redis = getRedis();
+    const key = `wanko_rl:${ip}`;
+    const count = await redis.incr(key);
+    if (count === 1) await redis.expire(key, RATE_WINDOW_SEC);
+    return count <= RATE_LIMIT;
+  } catch {
+    // Redis 障害時は in-memory にフォールバック
+    return checkRateLimitMemory(ip);
+  }
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -129,7 +149,7 @@ export default async function handler(req: any, res: any): Promise<void> {
 
   // レートリミット
   const ip = getClientIP(req.headers);
-  if (!checkRateLimit(ip)) {
+  if (!(await checkRateLimit(ip))) {
     res.setHeader("Retry-After", "60");
     res.status(429).json({ error: "リクエストが多すぎます。しばらく待ってから再試行してください。" });
     return;
