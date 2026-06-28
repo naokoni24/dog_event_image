@@ -182,7 +182,7 @@ export default async function handler(req: any, res: any): Promise<void> {
           },
         ],
         // temperature を下げて入力画像への忠実度を上げる（既定の1.0だと顔が崩れやすい）
-        config: { responseModalities: ["IMAGE"], temperature: 0.3 },
+        config: { responseModalities: ["IMAGE"], temperature: 0.2 },
       });
 
       const parts = response.candidates?.[0]?.content?.parts ?? [];
