@@ -11,6 +11,40 @@ const MONTHLY_LIMIT = 300;
 const SESSION_KEY = "admin_authed";
 const PASSWORD_API = "/api/admin-stats";
 
+// 管理画面はホーム画面追加時にユーザー画面と区別できるよう、
+// アイコン・タイトル・テーマカラーをインディゴ系に差し替える。
+function useAdminHomeScreenBranding() {
+  useEffect(() => {
+    const prevTitle = document.title;
+    const setAttr = (selector: string, attr: string, value: string) => {
+      const el = document.querySelector(selector);
+      const prev = el?.getAttribute(attr) ?? null;
+      el?.setAttribute(attr, value);
+      return prev;
+    };
+
+    document.title = "わんこ管理";
+    const restores = [
+      () => { document.title = prevTitle; },
+    ];
+    const swaps: [string, string, string][] = [
+      ['link[rel="apple-touch-icon"]', "href", "/apple-touch-icon-admin.png"],
+      ['link[rel="manifest"]', "href", "/manifest-admin.webmanifest"],
+      ['meta[name="theme-color"]', "content", "#4f46e5"],
+      ['meta[name="apple-mobile-web-app-title"]', "content", "わんこ管理"],
+    ];
+    for (const [selector, attr, value] of swaps) {
+      const prev = setAttr(selector, attr, value);
+      restores.push(() => {
+        const el = document.querySelector(selector);
+        if (prev !== null) el?.setAttribute(attr, prev);
+      });
+    }
+
+    return () => { restores.forEach(fn => fn()); };
+  }, []);
+}
+
 // ── ログイン画面 ──────────────────────────────────────────────────────────
 function LoginScreen({ onLogin }: { onLogin: (password: string) => Promise<boolean> }) {
   const [pw, setPw] = useState("");
@@ -291,6 +325,8 @@ function AdminMain({ password, onLogout }: { password: string; onLogout: () => v
 
 // ── ページエントリー ──────────────────────────────────────────────────────
 export default function AdminPage() {
+  useAdminHomeScreenBranding();
+
   const [password, setPassword] = useState<string | null>(
     sessionStorage.getItem(SESSION_KEY)
   );
