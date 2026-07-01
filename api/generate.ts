@@ -190,9 +190,11 @@ export default async function handler(req: any, res: any): Promise<void> {
 
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     try {
-      // 【一時テスト】プロンプト無し（写真のみ）でベースライン確認中。確認後は必ずrevertすること。
+      // input の要素型を明示することで、TS の overload 解決が Array<Turn> 側に
+      // 誤って倒れるのを防ぐ（@google/genai 2.x の interactions.create は多重オーバーロード）。
       const input: Array<Interactions.ImageContent | Interactions.TextContent> = [
         { type: "image", mime_type: mimeType, data: imageData },
+        { type: "text", text: prompt },
       ];
 
       const interaction = await ai.interactions.create({
