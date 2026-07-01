@@ -1,4 +1,4 @@
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, type Interactions } from "@google/genai";
 import { getRedis, COUNTER_KEY, MONTHLY_KEY } from "./_redis.js";
 
 // ── イベントプロンプト（生成の実体）────────────────────────────────────────
@@ -190,33 +190,35 @@ export default async function handler(req: any, res: any): Promise<void> {
 
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     try {
+      // input の要素型を明示することで、TS の overload 解決が Array<Turn> 側に
+      // 誤って倒れるのを防ぐ（@google/genai 2.x の interactions.create は多重オーバーロード）。
+      const input: Array<Interactions.ImageContent | Interactions.TextContent> = [
+        { type: "image", mime_type: mimeType, data: imageData },
+        { type: "text", text: prompt },
+      ];
+
       const interaction = await ai.interactions.create({
         model: "gemini-3.1-flash-lite-image", // Nano Banana 2 Lite
-        input: [
-          { type: "image", mime_type: mimeType, data: imageData },
-          { type: "text", text: prompt },
-        ],
+        input,
         response_modalities: ["image"],
         // temperature を下げて入力画像への忠実度を上げる（既定の1.0だと顔が崩れやすい）
         generation_config: { temperature: 0.2 },
       });
 
-      const outputs = interaction.outputs ?? [];
-      for (const item of outputs) {
-        if (item.type === "image" && item.data) {
-          // 生成成功 → グローバル・月別カウンターをインクリメント
-          let totalCount = 0;
-          try {
-            const redis = getRedis();
-            const monthKey = MONTHLY_KEY();
-            [totalCount] = await Promise.all([
-              redis.incr(COUNTER_KEY),
-              redis.incr(monthKey),
-            ]);
-          } catch { /* カウント失敗でも画像は返す */ }
-          res.status(200).json({ data: item.data, mimeType: item.mime_type ?? mimeType, totalCount });
-          return;
-        }
+      const image = interaction.output_image;
+      if (image?.data) {
+        // 生成成功 → グローバル・月別カウンターをインクリメント
+        let totalCount = 0;
+        try {
+          const redis = getRedis();
+          const monthKey = MONTHLY_KEY();
+          [totalCount] = await Promise.all([
+            redis.incr(COUNTER_KEY),
+            redis.incr(monthKey),
+          ]);
+        } catch { /* カウント失敗でも画像は返す */ }
+        res.status(200).json({ data: image.data, mimeType: image.mime_type ?? mimeType, totalCount });
+        return;
       }
 
       // 画像が返ってこなかった場合もリトライ
