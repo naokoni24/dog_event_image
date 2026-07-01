@@ -15,8 +15,7 @@
     "ioredis": "^5.10.1",
     "jszip": "^3.10.1",
     "react": "^19.2.5",
-    "react-dom": "^19.2.5",
-    "sharp": "^0.35.2"
+    "react-dom": "^19.2.5"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

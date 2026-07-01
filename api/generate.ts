@@ -1,19 +1,5 @@
 import { GoogleGenAI, type Interactions } from "@google/genai";
-import sharp from "sharp";
 import { getRedis, COUNTER_KEY, MONTHLY_KEY } from "./_redis.js";
-
-// 0-255のうちこの値以下を黒へ潰すレベル補正。生成モデルが黒毛を灰色っぽく
-// 浮かせてしまう傾向を、画像全体への軽いコントラスト補正で緩和する簡易対策。
-// 犬の領域だけを狙った補正ではないため、背景・衣装にも同様の補正がかかる。
-const BLACK_POINT = 18;
-
-async function restoreBlackPoint(base64Data: string): Promise<string> {
-  const buffer = Buffer.from(base64Data, "base64");
-  const scale = 255 / (255 - BLACK_POINT);
-  const offset = -BLACK_POINT * scale;
-  const corrected = await sharp(buffer).linear(scale, offset).toBuffer();
-  return corrected.toString("base64");
-}
 
 // ── イベントプロンプト（生成の実体）────────────────────────────────────────
 //    実際の生成プロンプトはここで組み立てる。フロントの src/lib/events.ts は
@@ -221,11 +207,6 @@ export default async function handler(req: any, res: any): Promise<void> {
 
       const image = interaction.output_image;
       if (image?.data) {
-        let outputData = image.data;
-        try {
-          outputData = await restoreBlackPoint(image.data);
-        } catch { /* 補正失敗時は元画像をそのまま返す */ }
-
         // 生成成功 → グローバル・月別カウンターをインクリメント
         let totalCount = 0;
         try {
@@ -236,7 +217,7 @@ export default async function handler(req: any, res: any): Promise<void> {
             redis.incr(monthKey),
           ]);
         } catch { /* カウント失敗でも画像は返す */ }
-        res.status(200).json({ data: outputData, mimeType: image.mime_type ?? mimeType, totalCount });
+        res.status(200).json({ data: image.data, mimeType: image.mime_type ?? mimeType, totalCount });
         return;
       }
 
