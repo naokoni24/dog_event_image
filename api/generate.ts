@@ -190,24 +190,20 @@ export default async function handler(req: any, res: any): Promise<void> {
 
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     try {
-      const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash-image",
-        contents: [
-          {
-            role: "user",
-            parts: [
-              { inlineData: { mimeType, data: imageData } },
-              { text: prompt },
-            ],
-          },
+      const interaction = await ai.interactions.create({
+        model: "gemini-3.1-flash-lite-image", // Nano Banana 2 Lite
+        input: [
+          { type: "image", mime_type: mimeType, data: imageData },
+          { type: "text", text: prompt },
         ],
+        response_modalities: ["image"],
         // temperature を下げて入力画像への忠実度を上げる（既定の1.0だと顔が崩れやすい）
-        config: { responseModalities: ["IMAGE"], temperature: 0.2 },
+        generation_config: { temperature: 0.2 },
       });
 
-      const parts = response.candidates?.[0]?.content?.parts ?? [];
-      for (const part of parts) {
-        if (part.inlineData?.data) {
+      const outputs = interaction.outputs ?? [];
+      for (const item of outputs) {
+        if (item.type === "image" && item.data) {
           // 生成成功 → グローバル・月別カウンターをインクリメント
           let totalCount = 0;
           try {
@@ -218,7 +214,7 @@ export default async function handler(req: any, res: any): Promise<void> {
               redis.incr(monthKey),
             ]);
           } catch { /* カウント失敗でも画像は返す */ }
-          res.status(200).json({ data: part.inlineData.data, mimeType: part.inlineData.mimeType, totalCount });
+          res.status(200).json({ data: item.data, mimeType: item.mime_type ?? mimeType, totalCount });
           return;
         }
       }
