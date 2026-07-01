@@ -190,9 +190,11 @@ export default async function handler(req: any, res: any): Promise<void> {
 
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     try {
-      // 【一時テスト】プロンプト無し（写真のみ）でベースライン確認中。確認後は必ずrevertすること。
+      // 【一時テスト】識別維持系の指示（EDIT/FACE）を外し、イベント演出文のみでベースライン確認中。確認後は必ずrevertすること。
+      const eventOnlyPrompt = `${prompts[promptIndex]}${STYLE}`;
       const input: Array<Interactions.ImageContent | Interactions.TextContent> = [
         { type: "image", mime_type: mimeType, data: imageData },
+        { type: "text", text: eventOnlyPrompt },
       ];
 
       const interaction = await ai.interactions.create({
