@@ -1,4 +1,4 @@
-import { GoogleGenAI, type Interactions } from "@google/genai";
+import { GoogleGenAI } from "@google/genai";
 import { getRedis, COUNTER_KEY, MONTHLY_KEY } from "./_redis.js";
 
 // ── イベントプロンプト（生成の実体）────────────────────────────────────────
@@ -7,7 +7,7 @@ import { getRedis, COUNTER_KEY, MONTHLY_KEY } from "./_redis.js";
 
 // これは「新規生成」ではなく「元写真の編集」であることを最初に宣言する。
 // モデルは前方のトークンを強く重視するため、識別維持の核を冒頭に置く。
-const EDIT = "これは画像編集タスクです。アップロードされた元の写真に写っている犬本人を、顔と頭部をそのまま使ってください。新しい犬を生成したり、別の犬の顔に置き換えたりすることは絶対に禁止です。変更してよいのは衣装・小物・背景・装飾・ポーズ・表情だけで、犬の顔そのものは元写真のまま固定します。体全体の毛並み（毛の長さ・毛流れ・巻き方・質感・色柄の分布）も元の写真から一切変化させないでください。毛色の明度・彩度（明るさ・鮮やかさ）も元の写真通りに正確に保ち、シーンの雰囲気・照明・天候に合わせて毛色を薄く・明るく・淡く・彩度を落として補正することは絶対に禁止です。元の写真に人物が写っている場合は、顔や全身だけでなく手・腕・足などの体の一部だけが写っている場合も含めて、生成画像にはその人物を一切含めず、犬だけが写るようにしてください。犬の体型・プロポーション（脚の長さ、胴の長さ、体全体の大きさのバランス、頭と体の比率）も元の写真の個体のまま維持し、太らせたり痩せさせたり、脚を長く/短くしたり、体格を変えたりすることは絶対に禁止です。元の写真に写っている犬の頭数を変えないでください。犬を複製したり増やしたりして2匹以上にすることは絶対に禁止です。";
+const EDIT = "これは画像編集タスクです。アップロードされた元の写真に写っている犬本人を、顔と頭部をそのまま使ってください。新しい犬を生成したり、別の犬の顔に置き換えたりすることは絶対に禁止です。変更してよいのは衣装・小物・背景・装飾・ポーズ・表情だけで、犬の顔そのものは元写真のまま固定します。";
 
 // 枚目ごとに異なる表情・雰囲気の指示
 const FACE = "顔・顔の形・目の形と間隔・鼻の形と大きさ・口元・マズルの長さと丸み・耳の形と位置、および顔まわりの毛（目の周り・鼻周り・口元・耳周りの毛の長さ・カール具合・毛束感・色の濃淡）を、元の写真とまったく同じになるよう厳密に維持してください。特に茶色のトイプードルでは、一般的・テディベア風の整ったプードル顔に寄せてはいけません。元写真の顔のバランス、毛色の濃淡、巻き毛の密度、目鼻の位置をそのまま残してください。顔立ちの美化・若返り・小顔化・目の拡大などの補正は一切しないでください。表情だけはわずかに変えて構いません。写真に複数の犬が写っている場合は、それぞれを別個体として認識し、各犬の顔・毛色・毛並みをそれぞれ元の写真のまま維持してください。";
@@ -190,35 +190,37 @@ export default async function handler(req: any, res: any): Promise<void> {
 
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     try {
-      // input の要素型を明示することで、TS の overload 解決が Array<Turn> 側に
-      // 誤って倒れるのを防ぐ（@google/genai 2.x の interactions.create は多重オーバーロード）。
-      const input: Array<Interactions.ImageContent | Interactions.TextContent> = [
-        { type: "image", mime_type: mimeType, data: imageData },
-        { type: "text", text: prompt },
-      ];
-
-      const interaction = await ai.interactions.create({
-        model: "gemini-3.1-flash-lite-image", // Nano Banana 2 Lite
-        input,
-        response_modalities: ["image"],
+      const response = await ai.models.generateContent({
+        model: "gemini-2.5-flash-image",
+        contents: [
+          {
+            role: "user",
+            parts: [
+              { inlineData: { mimeType, data: imageData } },
+              { text: prompt },
+            ],
+          },
+        ],
         // temperature を下げて入力画像への忠実度を上げる（既定の1.0だと顔が崩れやすい）
-        generation_config: { temperature: 0.2 },
+        config: { responseModalities: ["IMAGE"], temperature: 0.2 },
       });
 
-      const image = interaction.output_image;
-      if (image?.data) {
-        // 生成成功 → グローバル・月別カウンターをインクリメント
-        let totalCount = 0;
-        try {
-          const redis = getRedis();
-          const monthKey = MONTHLY_KEY();
-          [totalCount] = await Promise.all([
-            redis.incr(COUNTER_KEY),
-            redis.incr(monthKey),
-          ]);
-        } catch { /* カウント失敗でも画像は返す */ }
-        res.status(200).json({ data: image.data, mimeType: image.mime_type ?? mimeType, totalCount });
-        return;
+      const parts = response.candidates?.[0]?.content?.parts ?? [];
+      for (const part of parts) {
+        if (part.inlineData?.data) {
+          // 生成成功 → グローバル・月別カウンターをインクリメント
+          let totalCount = 0;
+          try {
+            const redis = getRedis();
+            const monthKey = MONTHLY_KEY();
+            [totalCount] = await Promise.all([
+              redis.incr(COUNTER_KEY),
+              redis.incr(monthKey),
+            ]);
+          } catch { /* カウント失敗でも画像は返す */ }
+          res.status(200).json({ data: part.inlineData.data, mimeType: part.inlineData.mimeType, totalCount });
+          return;
+        }
       }
 
       // 画像が返ってこなかった場合もリトライ
