@@ -184,10 +184,12 @@ export default async function handler(req: any, res: any): Promise<void> {
   const prompt = `${KEEPS[promptIndex]}${prompts[promptIndex]}${STYLE}`;
 
   // ── OpenAI API 呼び出し（リトライあり） ──────────────────────────────
-  // Vercelの関数実行上限60秒（vercel.json）に収めるため、SDK自体のデフォルト
-  // リトライ（maxRetries:2）とデフォルトタイムアウト（10分）を無効化し、
-  // こちらの外側リトライループと二重に retry・待機が重ならないようにする。
-  const openai = new OpenAI({ apiKey, timeout: 25_000, maxRetries: 0 });
+  // gpt-image-2(low)の実測レイテンシが25秒を超えるケースが多く、
+  // 前回の25秒設定では2回とも必ずタイムアウトしていた。
+  // vercel.jsonのmaxDurationを300秒に引き上げた上で、1回あたり90秒の
+  // 余裕を持たせる（SDK自体のデフォルトリトライ・タイムアウトは無効化し、
+  // こちらの外側リトライループと二重に重ならないようにする）。
+  const openai = new OpenAI({ apiKey, timeout: 90_000, maxRetries: 0 });
   const MAX_RETRIES = 2;
   const RETRY_DELAY_MS = 1000;
 

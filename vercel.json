@@ -2,7 +2,7 @@
   "regions": ["hnd1"],
   "functions": {
     "api/generate.ts": {
-      "maxDuration": 60
+      "maxDuration": 300
     },
     "api/admin-stats.ts": {
       "maxDuration": 10
