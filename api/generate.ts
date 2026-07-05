@@ -1,4 +1,4 @@
-import { GoogleGenAI } from "@google/genai";
+import OpenAI, { toFile } from "openai";
 import { getRedis, COUNTER_KEY, MONTHLY_KEY } from "./_redis.js";
 
 // ── イベントプロンプト（生成の実体）────────────────────────────────────────
@@ -175,7 +175,7 @@ export default async function handler(req: any, res: any): Promise<void> {
     res.status(413).json({ error: "画像サイズが大きすぎます（最大5MB）" }); return;
   }
 
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) { res.status(500).json({ error: "Server configuration error" }); return; }
 
   const prompts = EVENTS[eventId];
@@ -183,44 +183,38 @@ export default async function handler(req: any, res: any): Promise<void> {
 
   const prompt = `${KEEPS[promptIndex]}${prompts[promptIndex]}${STYLE}`;
 
-  // ── Gemini API 呼び出し（リトライあり） ──────────────────────────────
-  const ai = new GoogleGenAI({ apiKey });
+  // ── OpenAI API 呼び出し（リトライあり） ──────────────────────────────
+  const openai = new OpenAI({ apiKey });
   const MAX_RETRIES = 2;
   const RETRY_DELAY_MS = 1000;
 
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     try {
-      const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash-image",
-        contents: [
-          {
-            role: "user",
-            parts: [
-              { inlineData: { mimeType, data: imageData } },
-              { text: prompt },
-            ],
-          },
-        ],
-        // temperature を下げて入力画像への忠実度を上げる（既定の1.0だと顔が崩れやすい）
-        config: { responseModalities: ["IMAGE"], temperature: 0.2 },
+      const image = await toFile(Buffer.from(imageData, "base64"), "photo.jpg", { type: mimeType });
+
+      const response = await openai.images.edit({
+        model: "gpt-image-2",
+        image,
+        prompt,
+        // low: 速度・コスト優先の最安ティア（画質は無印より下がる）
+        quality: "low",
       });
 
-      const parts = response.candidates?.[0]?.content?.parts ?? [];
-      for (const part of parts) {
-        if (part.inlineData?.data) {
-          // 生成成功 → グローバル・月別カウンターをインクリメント
-          let totalCount = 0;
-          try {
-            const redis = getRedis();
-            const monthKey = MONTHLY_KEY();
-            [totalCount] = await Promise.all([
-              redis.incr(COUNTER_KEY),
-              redis.incr(monthKey),
-            ]);
-          } catch { /* カウント失敗でも画像は返す */ }
-          res.status(200).json({ data: part.inlineData.data, mimeType: part.inlineData.mimeType, totalCount });
-          return;
-        }
+      const result = response.data?.[0];
+      if (result?.b64_json) {
+        // 生成成功 → グローバル・月別カウンターをインクリメント
+        let totalCount = 0;
+        try {
+          const redis = getRedis();
+          const monthKey = MONTHLY_KEY();
+          [totalCount] = await Promise.all([
+            redis.incr(COUNTER_KEY),
+            redis.incr(monthKey),
+          ]);
+        } catch { /* カウント失敗でも画像は返す */ }
+        const outputFormat = response.output_format ?? "png";
+        res.status(200).json({ data: result.b64_json, mimeType: `image/${outputFormat}`, totalCount });
+        return;
       }
 
       // 画像が返ってこなかった場合もリトライ
@@ -233,8 +227,9 @@ export default async function handler(req: any, res: any): Promise<void> {
 
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Unknown error";
+      const status = (err as { status?: number })?.status;
       console.error(`[generate] attempt=${attempt} error:`, msg);
-      const isRateLimit = msg.includes("429") || msg.toLowerCase().includes("quota") || msg.toLowerCase().includes("rate");
+      const isRateLimit = status === 429 || msg.includes("429") || msg.toLowerCase().includes("quota") || msg.toLowerCase().includes("rate");
 
       if (attempt < MAX_RETRIES) {
         // レートリミット or 一時エラーはリトライ
