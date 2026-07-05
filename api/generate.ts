@@ -198,11 +198,16 @@ export default async function handler(req: any, res: any): Promise<void> {
       const image = await toFile(Buffer.from(imageData, "base64"), "photo.jpg", { type: mimeType });
 
       const response = await openai.images.edit({
-        model: "gpt-image-2",
+        // gpt-image-2はinput_fidelityを変更できず常に高忠実度で処理するため、
+        // ポーズ・構図が元写真からほぼ変わらない問題が発生した。
+        // gpt-image-1.5はinput_fidelity: "low"でより自由に変化させられる。
+        model: "gpt-image-1.5",
         image,
         prompt,
         // low: 速度・コスト優先の最安ティア（画質は無印より下がる）
         quality: "low",
+        // ポーズ・構図・背景を元写真に縛られず変化させるための設定
+        input_fidelity: "low",
       });
 
       const result = response.data?.[0];
