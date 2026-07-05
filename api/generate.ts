@@ -184,7 +184,10 @@ export default async function handler(req: any, res: any): Promise<void> {
   const prompt = `${KEEPS[promptIndex]}${prompts[promptIndex]}${STYLE}`;
 
   // ── OpenAI API 呼び出し（リトライあり） ──────────────────────────────
-  const openai = new OpenAI({ apiKey });
+  // Vercelの関数実行上限60秒（vercel.json）に収めるため、SDK自体のデフォルト
+  // リトライ（maxRetries:2）とデフォルトタイムアウト（10分）を無効化し、
+  // こちらの外側リトライループと二重に retry・待機が重ならないようにする。
+  const openai = new OpenAI({ apiKey, timeout: 25_000, maxRetries: 0 });
   const MAX_RETRIES = 2;
   const RETRY_DELAY_MS = 1000;
 
