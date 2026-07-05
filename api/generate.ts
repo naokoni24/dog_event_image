@@ -208,6 +208,8 @@ export default async function handler(req: any, res: any): Promise<void> {
         quality: "low",
         // ポーズ・構図・背景を元写真に縛られず変化させるための設定
         input_fidelity: "low",
+        // 正方形に固定（横長・縦長はコストが上がるため）
+        size: "1024x1024",
       });
 
       const result = response.data?.[0];
