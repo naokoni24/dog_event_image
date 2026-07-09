@@ -183,7 +183,7 @@ export default function App() {
           {isGenerating
             ? (
               <span className="inline-flex items-center justify-center gap-2">
-                生成中... <span className="animate-dog-run">🐕</span>
+                生成中... <span className="animate-dog-face">🐶</span>
               </span>
             )
             : selectedEventConfig
