@@ -181,7 +181,11 @@ export default function App() {
           }
         >
           {isGenerating
-            ? `生成中... ${SALON.emoji}`
+            ? (
+              <span className="inline-flex items-center justify-center gap-2">
+                生成中... <span className="animate-dog-run">🐕</span>
+              </span>
+            )
             : selectedEventConfig
               ? `${SALON.emoji} ${selectedEventConfig.emoji} ${selectedEventConfig.label}の画像を生成 ${SALON.emoji}`
               : `${SALON.emoji} 画像を生成する ${SALON.emoji}`}

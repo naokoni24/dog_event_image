@@ -14,3 +14,13 @@ body {
 #root {
   min-height: 100svh;
 }
+
+@keyframes dog-run {
+  0%, 100% { transform: translateX(-10px) scaleX(-1); }
+  50% { transform: translateX(10px) scaleX(-1); }
+}
+
+.animate-dog-run {
+  display: inline-block;
+  animation: dog-run 0.7s ease-in-out infinite;
+}
