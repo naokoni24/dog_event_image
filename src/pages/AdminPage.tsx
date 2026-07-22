@@ -155,12 +155,18 @@ function AdminMain({ password, onLogout }: { password: string; onLogout: () => v
       if (r.ok) {
         const d = await r.json() as { monthly: number; total: number };
         setStats(d);
+      } else if (r.status === 401) {
+        // パスワード変更後の古いセッションを復旧不能なローディング状態にしない。
+        sessionStorage.removeItem(SESSION_KEY);
+        onLogout();
       }
     } catch { /* ignore */ }
   }
 
   useEffect(() => {
-    fetchStats();
+    // 初回描画を妨げず、アンマウント後の更新も避ける。
+    const timer = window.setTimeout(() => { void fetchStats(); }, 0);
+    return () => window.clearTimeout(timer);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

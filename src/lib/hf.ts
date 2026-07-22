@@ -3,9 +3,24 @@ import type { EventConfig } from "../types";
 const MAX_SIZE = 1024; // px
 const JPEG_QUALITY = 0.85;
 const MAX_BYTES = 3 * 1024 * 1024; // 3MB（Vercelの4.5MB制限に余裕を持たせる）
+const FALLBACK_MIME_TYPES = new Set([
+  "image/jpeg", "image/png", "image/webp", "image/heic", "image/heif",
+]);
+
+function getOriginalImage(dataUrl: string): { base64: string; mimeType: string } {
+  const [header, base64] = dataUrl.split(",");
+  const mimeType = header.match(/:(.*?);/)?.[1] ?? "image/jpeg";
+  if (!FALLBACK_MIME_TYPES.has(mimeType)) {
+    throw new Error("画像を読み込めませんでした。JPEG・PNG・WebP画像を選んでください。");
+  }
+  if (!base64 || Math.ceil(base64.length * 0.75) > MAX_BYTES) {
+    throw new Error("画像を読み込めませんでした。3MB以下のJPEG・PNG・WebP画像を選んでください。");
+  }
+  return { base64, mimeType };
+}
 
 async function compressImage(dataUrl: string): Promise<{ base64: string; mimeType: string }> {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => {
       try {
@@ -40,17 +55,11 @@ async function compressImage(dataUrl: string): Promise<{ base64: string; mimeTyp
 
         resolve({ base64, mimeType: "image/jpeg" });
       } catch {
-        // Canvas失敗時はオリジナルをそのまま使う
-        const [header, base64] = dataUrl.split(",");
-        const mimeType = header.match(/:(.*?);/)?.[1] ?? "image/jpeg";
-        resolve({ base64, mimeType });
+        try { resolve(getOriginalImage(dataUrl)); } catch (error) { reject(error); }
       }
     };
     img.onerror = () => {
-      // 画像読み込み失敗時もオリジナルをそのまま使う
-      const [header, base64] = dataUrl.split(",");
-      const mimeType = header.match(/:(.*?);/)?.[1] ?? "image/jpeg";
-      resolve({ base64, mimeType });
+      try { resolve(getOriginalImage(dataUrl)); } catch (error) { reject(error); }
     };
     img.src = dataUrl;
   });

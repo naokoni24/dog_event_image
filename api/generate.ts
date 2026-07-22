@@ -88,7 +88,8 @@ const rateMap = new Map<string, { count: number; resetAt: number }>();
 const ALLOWED_MIME = new Set([
   "image/jpeg", "image/png", "image/webp", "image/heic", "image/heif",
 ]);
-const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+// JSON内でBase64化されるため、Vercelのリクエスト本文上限を超えない値にする。
+const MAX_IMAGE_BYTES = 3 * 1024 * 1024;
 
 const PRODUCTION_ORIGIN = "https://dog-event-app.vercel.app";
 const ALLOWED_ORIGINS = [
@@ -172,7 +173,7 @@ export default async function handler(req: any, res: any): Promise<void> {
     res.status(400).json({ error: "Missing image data" }); return;
   }
   if (Math.ceil(imageData.length * 0.75) > MAX_IMAGE_BYTES) {
-    res.status(413).json({ error: "画像サイズが大きすぎます（最大5MB）" }); return;
+    res.status(413).json({ error: "画像サイズが大きすぎます（最大3MB）" }); return;
   }
 
   const apiKey = process.env.OPENAI_API_KEY;

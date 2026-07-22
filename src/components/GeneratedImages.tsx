@@ -36,7 +36,6 @@ function LoadingCard() {
 function useWatermarked(dataUrl: string): string | null {
   const [result, setResult] = useState<string | null>(null);
   useEffect(() => {
-    setResult(null);
     const img = new Image();
     img.onload = () => {
       const canvas = document.createElement("canvas");
@@ -125,7 +124,8 @@ export function GeneratedImages({ images, eventLabel, onSaved }: Props) {
   function toggleSelect(index: number) {
     setSelected((prev) => {
       const next = new Set(prev);
-      next.has(index) ? next.delete(index) : next.add(index);
+      if (next.has(index)) next.delete(index);
+      else next.add(index);
       return next;
     });
   }
@@ -155,7 +155,7 @@ export function GeneratedImages({ images, eventLabel, onSaved }: Props) {
       })
     );
 
-    onSaved?.();
+    if (onSaved) onSaved();
 
     // モバイル：Web Share API で複数ファイルをまとめて渡す（写真アプリへ保存可）
     if (files.length > 1 && navigator.canShare?.({ files })) {

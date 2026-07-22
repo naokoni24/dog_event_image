@@ -28,11 +28,14 @@ const PAW_POSITIONS = [
 
 export default function App() {
   // /admin ルートを管理画面に振り分け
-  if (window.location.pathname === "/admin") {
+  if (window.location.pathname === "/admin" || window.location.pathname.startsWith("/admin/")) {
     return <AdminPage />;
   }
 
+  return <PublicApp />;
+}
 
+function PublicApp() {
   const [dogImage, setDogImage] = useState<string | null>(null);
   const [selectedEvent, setSelectedEvent] = useState<EventId | null>(null);
   const [generatedImages, setGeneratedImages] = useState<GeneratedImage[]>([]);
