@@ -1,4 +1,4 @@
-import { getRedis, COUNTER_KEY, MONTHLY_KEY } from "./_redis.js";
+import { getMonthlyGenerationLimit, getRedis, COUNTER_KEY, IMAGES_PER_GENERATION, MONTHLY_KEY } from "./_redis.js";
 
 const PRODUCTION_ORIGIN = "https://dog-event-app.vercel.app";
 const ALLOWED_ORIGINS = [
@@ -33,9 +33,11 @@ export default async function handler(req: any, res: any): Promise<void> {
       redis.get(COUNTER_KEY),
       redis.get(monthKey),
     ]);
+    const monthlyImages = parseInt(monthlyStr ?? "0", 10);
     res.status(200).json({
       total: parseInt(totalStr ?? "0", 10),
-      monthly: parseInt(monthlyStr ?? "0", 10),
+      monthly: Math.ceil(monthlyImages / IMAGES_PER_GENERATION),
+      monthlyLimit: getMonthlyGenerationLimit(),
     });
   } catch {
     res.status(500).json({ error: "Redis error" });

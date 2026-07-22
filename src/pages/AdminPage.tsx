@@ -7,7 +7,6 @@ import { EVENTS } from "../lib/events";
 import type { EventId, GeneratedImage } from "../types";
 
 const IMAGE_COUNT = 3;
-const MONTHLY_LIMIT = 300;
 const SESSION_KEY = "admin_authed";
 const PASSWORD_API = "/api/admin-stats";
 
@@ -101,8 +100,8 @@ function LoginScreen({ onLogin }: { onLogin: (password: string) => Promise<boole
 }
 
 // ── 月間統計バー ──────────────────────────────────────────────────────────
-function StatsBar({ monthly, total }: { monthly: number; total: number }) {
-  const pct = Math.min((monthly / MONTHLY_LIMIT) * 100, 100);
+function StatsBar({ monthly, total, monthlyLimit }: { monthly: number; total: number; monthlyLimit: number }) {
+  const pct = monthlyLimit === 0 ? 100 : Math.min((monthly / monthlyLimit) * 100, 100);
   const barColor = pct >= 90 ? "#ef4444" : pct >= 70 ? "#f97316" : "#6366f1";
 
   return (
@@ -116,7 +115,7 @@ function StatsBar({ monthly, total }: { monthly: number; total: number }) {
       <div className="flex items-end justify-between gap-2">
         <div>
           <span className="text-3xl font-black" style={{ color: barColor }}>{monthly.toLocaleString()}</span>
-          <span className="text-sm text-slate-400 ml-1">/ {MONTHLY_LIMIT.toLocaleString()} 回</span>
+          <span className="text-sm text-slate-400 ml-1">/ {monthlyLimit.toLocaleString()} 回</span>
         </div>
         <span className="text-xs font-bold rounded-full px-2 py-0.5" style={{ background: barColor + "18", color: barColor }}>
           {pct.toFixed(1)}%
@@ -129,7 +128,7 @@ function StatsBar({ monthly, total }: { monthly: number; total: number }) {
         />
       </div>
       <p className="text-xs text-slate-400">
-        残り <strong className="text-slate-600">{Math.max(MONTHLY_LIMIT - monthly, 0).toLocaleString()}</strong> 回
+        残り <strong className="text-slate-600">{Math.max(monthlyLimit - monthly, 0).toLocaleString()}</strong> 回
       </p>
     </div>
   );
@@ -137,7 +136,7 @@ function StatsBar({ monthly, total }: { monthly: number; total: number }) {
 
 // ── 管理画面メイン ────────────────────────────────────────────────────────
 function AdminMain({ password, onLogout }: { password: string; onLogout: () => void }) {
-  const [stats, setStats] = useState<{ monthly: number; total: number } | null>(null);
+  const [stats, setStats] = useState<{ monthly: number; total: number; monthlyLimit: number } | null>(null);
   const [dogImage, setDogImage] = useState<string | null>(null);
   const [selectedEvent, setSelectedEvent] = useState<EventId | null>(null);
   const [generatedImages, setGeneratedImages] = useState<GeneratedImage[]>([]);
@@ -153,7 +152,7 @@ function AdminMain({ password, onLogout }: { password: string; onLogout: () => v
         body: JSON.stringify({ password }),
       });
       if (r.ok) {
-        const d = await r.json() as { monthly: number; total: number };
+        const d = await r.json() as { monthly: number; total: number; monthlyLimit: number };
         setStats(d);
       } else if (r.status === 401) {
         // パスワード変更後の古いセッションを復旧不能なローディング状態にしない。
@@ -246,7 +245,7 @@ function AdminMain({ password, onLogout }: { password: string; onLogout: () => v
 
         {/* 月間統計 */}
         {stats ? (
-          <StatsBar monthly={stats.monthly} total={stats.total} />
+          <StatsBar monthly={stats.monthly} total={stats.total} monthlyLimit={stats.monthlyLimit} />
         ) : (
           <div className="bg-white rounded-3xl p-5 shadow border border-slate-200 animate-pulse h-36" />
         )}

@@ -40,7 +40,7 @@ function PublicApp() {
   const [selectedEvent, setSelectedEvent] = useState<EventId | null>(null);
   const [generatedImages, setGeneratedImages] = useState<GeneratedImage[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [totalCount, setTotalCount] = useState<number | null>(null);
+  const [remainingCount, setRemainingCount] = useState<number | null>(null);
   const [genKey, setGenKey] = useState(0);
 
   const selectedEventConfig = EVENTS.find((e) => e.id === selectedEvent);
@@ -48,8 +48,8 @@ function PublicApp() {
   useEffect(() => {
     fetch("/api/count")
       .then((r) => r.json())
-      .then((d: { count: number }) => setTotalCount(d.count))
-      .catch(() => setTotalCount(0));
+      .then((d: { remaining: number | null }) => setRemainingCount(d.remaining))
+      .catch(() => setRemainingCount(null));
   }, []);
 
   async function handleGenerate() {
@@ -75,14 +75,14 @@ function PublicApp() {
 
     const promises = Array.from({ length: IMAGE_COUNT }, async (_, i) => {
       try {
-        const { dataUrl, totalCount: newCount } = await generateEventImage(dogImage, selectedEventConfig, i);
+        const { dataUrl, remaining } = await generateEventImage(dogImage, selectedEventConfig, i);
         setGeneratedImages((prev) =>
           prev.map((img) =>
             img.index === i ? { ...img, data: dataUrl, status: "done" } : img
           )
         );
-        if (newCount !== undefined) {
-          setTotalCount((prev) => Math.max(prev ?? 0, newCount));
+        if (remaining !== undefined) {
+          setRemainingCount((prev) => prev === null ? remaining : Math.min(prev, remaining));
         }
       } catch (err) {
         console.error("[generate] error:", err);
@@ -131,11 +131,11 @@ function PublicApp() {
                 <span>{SALON.emoji}</span><span>{SALON.emoji}</span><span>{SALON.emoji}</span>
               </div>
             </div>
-            {/* 生成枚数バッジ */}
+            {/* 今月の残り生成回数バッジ */}
             <div className="rounded-2xl px-2 py-1.5 text-center shadow-lg w-14 shrink-0" style={{ background: SALON.badgeBg, color: SALON.badgeText }}>
-              <p className="text-[10px] font-bold leading-tight opacity-80">生成枚数</p>
+              <p className="text-[10px] font-bold leading-tight opacity-80">今月残り</p>
               <p className="text-base font-black leading-tight">
-                {totalCount === null ? "…" : totalCount.toLocaleString()}<span className="text-[10px] font-bold opacity-80">枚</span>
+                {remainingCount === null ? "…" : remainingCount.toLocaleString()}<span className="text-[10px] font-bold opacity-80">回</span>
               </p>
             </div>
           </div>

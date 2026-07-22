@@ -1,5 +1,5 @@
 import OpenAI, { toFile } from "openai";
-import { getRedis, COUNTER_KEY, MONTHLY_KEY } from "./_redis.js";
+import { getMonthlyGenerationLimit, getRedis, COUNTER_KEY, IMAGES_PER_GENERATION, MONTHLY_KEY } from "./_redis.js";
 
 // ── イベントプロンプト（生成の実体）────────────────────────────────────────
 //    実際の生成プロンプトはここで組み立てる。フロントの src/lib/events.ts は
@@ -216,17 +216,19 @@ export default async function handler(req: any, res: any): Promise<void> {
       const result = response.data?.[0];
       if (result?.b64_json) {
         // 生成成功 → グローバル・月別カウンターをインクリメント
-        let totalCount = 0;
+        let remaining: number | undefined;
         try {
           const redis = getRedis();
           const monthKey = MONTHLY_KEY();
-          [totalCount] = await Promise.all([
+          const [, monthlyCount] = await Promise.all([
             redis.incr(COUNTER_KEY),
             redis.incr(monthKey),
           ]);
+          const usedGenerations = Math.ceil(monthlyCount / IMAGES_PER_GENERATION);
+          remaining = Math.max(0, getMonthlyGenerationLimit() - usedGenerations);
         } catch { /* カウント失敗でも画像は返す */ }
         const outputFormat = response.output_format ?? "png";
-        res.status(200).json({ data: result.b64_json, mimeType: `image/${outputFormat}`, totalCount });
+        res.status(200).json({ data: result.b64_json, mimeType: `image/${outputFormat}`, remaining });
         return;
       }
 

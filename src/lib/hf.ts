@@ -69,7 +69,7 @@ export async function generateEventImage(
   dogImageDataUrl: string,
   event: EventConfig,
   promptIndex: number
-): Promise<{ dataUrl: string; totalCount?: number }> {
+): Promise<{ dataUrl: string; remaining?: number }> {
   const { base64: imageData, mimeType } = await compressImage(dogImageDataUrl);
 
   const response = await fetch("/api/generate", {
@@ -102,9 +102,9 @@ export async function generateEventImage(
     throw new Error(message);
   }
 
-  const result = (await response.json()) as { data: string; mimeType: string; totalCount?: number };
+  const result = (await response.json()) as { data: string; mimeType: string; remaining?: number };
   return {
     dataUrl: `data:${result.mimeType};base64,${result.data}`,
-    totalCount: result.totalCount,
+    remaining: result.remaining,
   };
 }
