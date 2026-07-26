@@ -27,7 +27,8 @@ export function ImageUploader({ onImageSelected, currentImage }: Props) {
 
   return (
     <div className="flex flex-col items-center gap-3">
-      <div
+      <button
+        type="button"
         onClick={() => inputRef.current?.click()}
         onDrop={handleDrop}
         onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
@@ -43,6 +44,7 @@ export function ImageUploader({ onImageSelected, currentImage }: Props) {
           }
         `}
         style={{ borderWidth: "3px", borderStyle: "dashed" }}
+        aria-label={currentImage ? "画像を変更" : "犬の画像をアップロード"}
       >
         {currentImage ? (
           <>
@@ -64,12 +66,12 @@ export function ImageUploader({ onImageSelected, currentImage }: Props) {
             <p className="text-xs text-amber-500">クリックまたはドラッグ</p>
           </>
         )}
-      </div>
+      </button>
 
       <input
         ref={inputRef}
         type="file"
-        accept="image/*"
+        accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
         className="hidden"
         onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
       />

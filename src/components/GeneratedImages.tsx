@@ -114,6 +114,17 @@ export function GeneratedImages({ images, eventLabel, onSaved }: Props) {
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [watermarkData, setWatermarkData] = useState<string | null>(null);
   const longPressTimers = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
+  const longPressTriggered = useRef<Set<number>>(new Set());
+  const suppressionTimers = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
+
+  useEffect(() => {
+    const timers = longPressTimers.current;
+    const suppressions = suppressionTimers.current;
+    return () => {
+      timers.forEach(clearTimeout);
+      suppressions.forEach(clearTimeout);
+    };
+  }, []);
 
   if (images.length === 0) return null;
 
@@ -131,11 +142,34 @@ export function GeneratedImages({ images, eventLabel, onSaved }: Props) {
   }
 
   function handleTouchStart(index: number, dataUrl: string) {
+    const existing = longPressTimers.current.get(index);
+    if (existing) clearTimeout(existing);
+    const existingSuppression = suppressionTimers.current.get(index);
+    if (existingSuppression) clearTimeout(existingSuppression);
+    suppressionTimers.current.delete(index);
+    longPressTriggered.current.delete(index);
     const timer = setTimeout(() => {
+      longPressTriggered.current.add(index);
       setWatermarkData(dataUrl);
       longPressTimers.current.delete(index);
+      // touchend後にclickが発生しなかった場合も、次回タップを誤って無視しない。
+      const suppression = setTimeout(() => {
+        longPressTriggered.current.delete(index);
+        suppressionTimers.current.delete(index);
+      }, 1000);
+      suppressionTimers.current.set(index, suppression);
     }, 600);
     longPressTimers.current.set(index, timer);
+  }
+
+  function handleClick(index: number) {
+    if (longPressTriggered.current.delete(index)) {
+      const suppression = suppressionTimers.current.get(index);
+      if (suppression) clearTimeout(suppression);
+      suppressionTimers.current.delete(index);
+      return;
+    }
+    toggleSelect(index);
   }
 
   function handleTouchEnd(index: number) {
@@ -209,19 +243,22 @@ export function GeneratedImages({ images, eventLabel, onSaved }: Props) {
             <div key={img.index}>
               {img.status === "loading" && <LoadingCard />}
               {img.status === "done" && (
-                <div
-                  onClick={() => toggleSelect(img.index)}
+                <button
+                  type="button"
+                  onClick={() => handleClick(img.index)}
                   onTouchStart={() => handleTouchStart(img.index, img.data)}
                   onTouchEnd={() => handleTouchEnd(img.index)}
                   onTouchMove={() => handleTouchEnd(img.index)}
                   onContextMenu={(e) => e.preventDefault()}
                   className={`
-                    relative aspect-square rounded-2xl overflow-hidden cursor-pointer transition-all select-none
+                    relative block w-full aspect-square rounded-2xl overflow-hidden cursor-pointer transition-all select-none
                     ${selected.has(img.index)
                       ? "ring-4 ring-amber-500 scale-105 shadow-lg"
                       : "ring-2 ring-amber-200 hover:ring-amber-400"
                     }
                   `}
+                  aria-pressed={selected.has(img.index)}
+                  aria-label={`${eventLabel} ${img.index + 1}を${selected.has(img.index) ? "選択解除" : "選択"}`}
                 >
                   <img
                     src={img.data}
@@ -241,7 +278,7 @@ export function GeneratedImages({ images, eventLabel, onSaved }: Props) {
                       {selected.has(img.index) ? "✓" : "○"}
                     </span>
                   </div>
-                </div>
+                </button>
               )}
               {img.status === "error" && (
                 <div className="aspect-square rounded-2xl bg-red-50 border-2 border-red-200 flex flex-col items-center justify-center gap-1 p-2">

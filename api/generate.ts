@@ -91,7 +91,7 @@ const rateMap = new Map<string, { count: number; resetAt: number }>();
 
 // ── 許可設定 ─────────────────────────────────────────────────────────────
 const ALLOWED_MIME = new Set([
-  "image/jpeg", "image/png", "image/webp", "image/heic", "image/heif",
+  "image/jpeg", "image/png", "image/webp",
 ]);
 // JSON内でBase64化されるため、Vercelのリクエスト本文上限を超えない値にする。
 const MAX_IMAGE_BYTES = 3 * 1024 * 1024;

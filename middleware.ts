@@ -11,12 +11,18 @@ export default function middleware(request: Request): Response | undefined {
 
   const authorization = request.headers.get("authorization");
   if (authorization) {
-    const [, base64] = authorization.split(" ");
-    const decoded = atob(base64 ?? "");
-    const colonIndex = decoded.indexOf(":");
-    const password = decoded.substring(colonIndex + 1);
-    if (password && password === process.env.BASIC_AUTH_PASSWORD) {
-      return undefined;
+    const [scheme, base64] = authorization.split(" ");
+    if (scheme?.toLowerCase() === "basic" && base64) {
+      try {
+        const decoded = atob(base64);
+        const colonIndex = decoded.indexOf(":");
+        const password = colonIndex >= 0 ? decoded.slice(colonIndex + 1) : "";
+        if (password && password === process.env.BASIC_AUTH_PASSWORD) {
+          return undefined;
+        }
+      } catch {
+        // 壊れたAuthorizationヘッダーは未認証として扱う。
+      }
     }
   }
 

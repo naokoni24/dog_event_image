@@ -45,7 +45,7 @@ function useAdminHomeScreenBranding() {
 }
 
 // ── ログイン画面 ──────────────────────────────────────────────────────────
-function LoginScreen({ onLogin }: { onLogin: (password: string) => Promise<boolean> }) {
+function LoginScreen({ onLogin }: { onLogin: (password: string) => Promise<string | null> }) {
   const [pw, setPw] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -54,11 +54,11 @@ function LoginScreen({ onLogin }: { onLogin: (password: string) => Promise<boole
     e.preventDefault();
     setLoading(true);
     setError("");
-    const ok = await onLogin(pw);
+    const loginError = await onLogin(pw);
     setLoading(false);
-    if (!ok) {
-      setError("パスワードが正しくありません");
-      setPw("");
+    if (loginError) {
+      setError(loginError);
+      if (loginError === "パスワードが正しくありません") setPw("");
     }
   }
 
@@ -137,6 +137,7 @@ function StatsBar({ monthly, total, monthlyLimit }: { monthly: number; total: nu
 // ── 管理画面メイン ────────────────────────────────────────────────────────
 function AdminMain({ password, onLogout }: { password: string; onLogout: () => void }) {
   const [stats, setStats] = useState<{ monthly: number; total: number; monthlyLimit: number } | null>(null);
+  const [statsError, setStatsError] = useState("");
   const [dogImage, setDogImage] = useState<string | null>(null);
   const [selectedEvent, setSelectedEvent] = useState<EventId | null>(null);
   const [generatedImages, setGeneratedImages] = useState<GeneratedImage[]>([]);
@@ -145,6 +146,7 @@ function AdminMain({ password, onLogout }: { password: string; onLogout: () => v
   const selectedEventConfig = EVENTS.find((e) => e.id === selectedEvent);
 
   async function fetchStats() {
+    setStatsError("");
     try {
       const r = await fetch("/api/admin-stats", {
         method: "POST",
@@ -158,8 +160,12 @@ function AdminMain({ password, onLogout }: { password: string; onLogout: () => v
         // パスワード変更後の古いセッションを復旧不能なローディング状態にしない。
         sessionStorage.removeItem(SESSION_KEY);
         onLogout();
+      } else {
+        setStatsError("統計を取得できませんでした");
       }
-    } catch { /* ignore */ }
+    } catch {
+      setStatsError("通信エラーで統計を取得できませんでした");
+    }
   }
 
   useEffect(() => {
@@ -246,6 +252,17 @@ function AdminMain({ password, onLogout }: { password: string; onLogout: () => v
         {/* 月間統計 */}
         {stats ? (
           <StatsBar monthly={stats.monthly} total={stats.total} monthlyLimit={stats.monthlyLimit} />
+        ) : statsError ? (
+          <div className="bg-white rounded-3xl p-5 shadow border border-red-200 h-36 flex flex-col items-center justify-center gap-3">
+            <p className="text-sm text-red-600">{statsError}</p>
+            <button
+              type="button"
+              onClick={() => { void fetchStats(); }}
+              className="rounded-xl bg-indigo-600 px-4 py-2 text-xs font-bold text-white active:scale-95"
+            >
+              再読み込み
+            </button>
+          </div>
         ) : (
           <div className="bg-white rounded-3xl p-5 shadow border border-slate-200 animate-pulse h-36" />
         )}
@@ -336,7 +353,7 @@ export default function AdminPage() {
     sessionStorage.getItem(SESSION_KEY)
   );
 
-  async function handleLogin(pw: string): Promise<boolean> {
+  async function handleLogin(pw: string): Promise<string | null> {
     try {
       const r = await fetch(PASSWORD_API, {
         method: "POST",
@@ -346,11 +363,13 @@ export default function AdminPage() {
       if (r.ok) {
         sessionStorage.setItem(SESSION_KEY, pw);
         setPassword(pw);
-        return true;
+        return null;
       }
-      return false;
+      return r.status === 401
+        ? "パスワードが正しくありません"
+        : "ログイン情報を確認できませんでした。もう一度お試しください";
     } catch {
-      return false;
+      return "通信エラーが発生しました。接続を確認してください";
     }
   }
 
