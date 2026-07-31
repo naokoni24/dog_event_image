@@ -28,7 +28,16 @@ const KEEPS = [
 
 const STYLE = " 必ず実写写真風・高画質・自然な光・背景ぼかしで仕上げてください。CGイラスト・アニメ・漫画・デジタルアート・絵画調は絶対に禁止。";
 
-function getCurrentDateInstruction(): string {
+const ZODIAC = [
+  { kanji: "子", reading: "ねずみ" }, { kanji: "丑", reading: "うし" },
+  { kanji: "寅", reading: "とら" }, { kanji: "卯", reading: "うさぎ" },
+  { kanji: "辰", reading: "たつ" }, { kanji: "巳", reading: "へび" },
+  { kanji: "午", reading: "うま" }, { kanji: "未", reading: "ひつじ" },
+  { kanji: "申", reading: "さる" }, { kanji: "酉", reading: "とり" },
+  { kanji: "戌", reading: "いぬ" }, { kanji: "亥", reading: "いのしし" },
+];
+
+function getCurrentDateContext(): { dateInstruction: string; newYearInstruction: string } {
   const now = new Date();
   const options: Intl.DateTimeFormatOptions = {
     timeZone: "Asia/Tokyo",
@@ -37,10 +46,17 @@ function getCurrentDateInstruction(): string {
     day: "numeric",
     weekday: "long",
   };
-  const gregorianDate = new Intl.DateTimeFormat("ja-JP-u-ca-gregory", options).format(now);
+  const gregorianFormatter = new Intl.DateTimeFormat("ja-JP-u-ca-gregory", options);
+  const gregorianDate = gregorianFormatter.format(now);
   const japaneseEraDate = new Intl.DateTimeFormat("ja-JP-u-ca-japanese", options).format(now);
+  const yearPart = gregorianFormatter.formatToParts(now).find((part) => part.type === "year");
+  const currentYear = Number(yearPart?.value);
+  const zodiac = ZODIAC[((currentYear - 2020) % ZODIAC.length + ZODIAC.length) % ZODIAC.length];
 
-  return `画像内に西暦・和暦・日付・曜日・カレンダー・年賀状・バナーなど時期を示す文字を描く場合は、現在の日本時間である西暦${gregorianDate}（和暦${japaneseEraDate}）と必ず一致させてください。過去年や未来年、異なる月日・曜日を表示してはいけません。`;
+  return {
+    dateInstruction: `画像内に西暦・和暦・日付・曜日・カレンダー・年賀状・バナーなど時期を示す文字を描く場合は、現在の日本時間である西暦${gregorianDate}（和暦${japaneseEraDate}）と必ず一致させてください。過去年や未来年、異なる月日・曜日を表示してはいけません。`,
+    newYearInstruction: `お正月の画像では、今年の干支は${zodiac.kanji}（${zodiac.reading}）です。${zodiac.kanji}（${zodiac.reading}）を自然な干支の飾り・置物・絵馬・年賀状のワンポイントなどとして必ず1つ取り入れてください。干支の動物や文字を描く場合は必ず${zodiac.kanji}（${zodiac.reading}）にし、別の年の干支を表示してはいけません。`,
+  };
 }
 
 // イベント固有のプロンプト（KEEP・STYLEは実行時に付加）
@@ -202,7 +218,9 @@ export default async function handler(req: any, res: any): Promise<void> {
   const prompts = EVENTS[eventId];
   if (!prompts) { res.status(400).json({ error: "Event not found" }); return; }
 
-  const prompt = `${getCurrentDateInstruction()}${KEEPS[promptIndex]}${prompts[promptIndex]}${STYLE}`;
+  const dateContext = getCurrentDateContext();
+  const newYearInstruction = eventId === "newyear" ? dateContext.newYearInstruction : "";
+  const prompt = `${dateContext.dateInstruction}${newYearInstruction}${KEEPS[promptIndex]}${prompts[promptIndex]}${STYLE}`;
 
   // ── OpenAI API 呼び出し（リトライあり） ──────────────────────────────
   // gpt-image-2(low)の実測レイテンシが25秒を超えるケースが多く、
