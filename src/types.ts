@@ -21,5 +21,6 @@ export interface GeneratedImage {
   data: string;
   index: number;
   status: "loading" | "done" | "error";
+  completionOrder?: number;
   error?: string;
 }

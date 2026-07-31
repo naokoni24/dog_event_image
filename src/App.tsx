@@ -73,12 +73,16 @@ function PublicApp() {
     }));
     setGeneratedImages(initial);
 
+    let completionOrder = 0;
     const promises = Array.from({ length: IMAGE_COUNT }, async (_, i) => {
       try {
         const { dataUrl, remaining } = await generateEventImage(dogImage, selectedEventConfig, i);
+        const finishedOrder = completionOrder++;
         setGeneratedImages((prev) =>
           prev.map((img) =>
-            img.index === i ? { ...img, data: dataUrl, status: "done" } : img
+            img.index === i
+              ? { ...img, data: dataUrl, status: "done", completionOrder: finishedOrder }
+              : img
           )
         );
         if (remaining !== undefined) {

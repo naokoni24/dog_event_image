@@ -154,9 +154,13 @@ export function GeneratedImages({ images, eventLabel, onSaved }: Props) {
   }, []);
 
   useEffect(() => {
-    const newlyCompleted = images.filter(
-      (image) => image.status === "done" && !celebratedIndices.current.has(image.index)
-    );
+    const newlyCompleted = images
+      .filter(
+        (image) => image.status === "done" && !celebratedIndices.current.has(image.index)
+      )
+      .sort(
+        (a, b) => (a.completionOrder ?? a.index) - (b.completionOrder ?? b.index)
+      );
     if (newlyCompleted.length === 0) return;
 
     newlyCompleted.forEach((image) => celebratedIndices.current.add(image.index));
@@ -172,7 +176,7 @@ export function GeneratedImages({ images, eventLabel, onSaved }: Props) {
     if (!activeCelebration) return;
     const timer = window.setTimeout(() => {
       setCelebrationQueue((current) => current.slice(1));
-    }, 1700);
+    }, 2000);
     return () => window.clearTimeout(timer);
   }, [activeCelebration]);
 
