@@ -110,9 +110,36 @@ function WatermarkModal({ dataUrl, onClose }: { dataUrl: string; onClose: () => 
   );
 }
 
+// 完成した写真を画面中央へ大きく飛び出させる一時表示
+function CompletionCelebration({ image, eventLabel }: { image: GeneratedImage; eventLabel: string }) {
+  return createPortal(
+    <div className="completion-celebration" role="status" aria-live="assertive">
+      <div className="completion-celebration-glow" aria-hidden />
+      <div className="completion-photo-stage">
+        <span className="completion-particle completion-particle-1" aria-hidden>✨</span>
+        <span className="completion-particle completion-particle-2" aria-hidden>🐾</span>
+        <span className="completion-particle completion-particle-3" aria-hidden>💛</span>
+        <span className="completion-particle completion-particle-4" aria-hidden>✨</span>
+        <div className="completion-photo-frame">
+          <div className="completion-photo-label">できあがり！ 🐾</div>
+          <img
+            src={image.data}
+            alt={`${eventLabel} ${image.index + 1}が完成しました`}
+            className="completion-photo-image"
+            draggable={false}
+          />
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
 export function GeneratedImages({ images, eventLabel, onSaved }: Props) {
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [watermarkData, setWatermarkData] = useState<string | null>(null);
+  const [celebrationQueue, setCelebrationQueue] = useState<GeneratedImage[]>([]);
+  const celebratedIndices = useRef<Set<number>>(new Set());
   const longPressTimers = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
   const longPressTriggered = useRef<Set<number>>(new Set());
   const suppressionTimers = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
@@ -125,6 +152,29 @@ export function GeneratedImages({ images, eventLabel, onSaved }: Props) {
       suppressions.forEach(clearTimeout);
     };
   }, []);
+
+  useEffect(() => {
+    const newlyCompleted = images.filter(
+      (image) => image.status === "done" && !celebratedIndices.current.has(image.index)
+    );
+    if (newlyCompleted.length === 0) return;
+
+    newlyCompleted.forEach((image) => celebratedIndices.current.add(image.index));
+    const timer = window.setTimeout(() => {
+      setCelebrationQueue((current) => [...current, ...newlyCompleted]);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [images]);
+
+  const activeCelebration = celebrationQueue[0];
+
+  useEffect(() => {
+    if (!activeCelebration) return;
+    const timer = window.setTimeout(() => {
+      setCelebrationQueue((current) => current.slice(1));
+    }, 1700);
+    return () => window.clearTimeout(timer);
+  }, [activeCelebration]);
 
   if (images.length === 0) return null;
 
@@ -225,6 +275,9 @@ export function GeneratedImages({ images, eventLabel, onSaved }: Props) {
     <>
       {watermarkData && (
         <WatermarkModal dataUrl={watermarkData} onClose={() => setWatermarkData(null)} />
+      )}
+      {activeCelebration && (
+        <CompletionCelebration image={activeCelebration} eventLabel={eventLabel} />
       )}
 
       <div className="flex flex-col gap-4">
