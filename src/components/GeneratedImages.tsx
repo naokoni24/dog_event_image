@@ -238,7 +238,11 @@ export function GeneratedImages({ images, eventLabel, onSaved }: Props) {
         <PreviewModal dataUrl={previewData} onClose={() => setPreviewData(null)} />
       )}
       {activeCelebration && (
-        <CompletionCelebration image={activeCelebration} eventLabel={eventLabel} />
+        <CompletionCelebration
+          key={`completion-${activeCelebration.index}`}
+          image={activeCelebration}
+          eventLabel={eventLabel}
+        />
       )}
 
       <div className="flex flex-col gap-4">
