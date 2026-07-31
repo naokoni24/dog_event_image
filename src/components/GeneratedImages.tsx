@@ -238,47 +238,51 @@ export function GeneratedImages({ images, eventLabel, onSaved }: Props) {
         )}
 
         {/* 画像グリッド */}
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-3 gap-3" aria-live="polite">
           {images.map((img) => (
-            <div key={img.index}>
+            <div key={img.index} className="relative">
               {img.status === "loading" && <LoadingCard />}
               {img.status === "done" && (
-                <button
-                  type="button"
-                  onClick={() => handleClick(img.index)}
-                  onTouchStart={() => handleTouchStart(img.index, img.data)}
-                  onTouchEnd={() => handleTouchEnd(img.index)}
-                  onTouchMove={() => handleTouchEnd(img.index)}
-                  onContextMenu={(e) => e.preventDefault()}
-                  className={`
-                    relative block w-full aspect-square rounded-2xl overflow-hidden cursor-pointer transition-all select-none
-                    ${selected.has(img.index)
-                      ? "ring-4 ring-amber-500 scale-105 shadow-lg"
-                      : "ring-2 ring-amber-200 hover:ring-amber-400"
-                    }
-                  `}
-                  aria-pressed={selected.has(img.index)}
-                  aria-label={`${eventLabel} ${img.index + 1}を${selected.has(img.index) ? "選択解除" : "選択"}`}
-                >
-                  <img
-                    src={img.data}
-                    alt={`${eventLabel} ${img.index + 1}`}
-                    className="w-full h-full object-cover pointer-events-none"
-                    draggable={false}
-                    style={{ WebkitTouchCallout: "none" } as React.CSSProperties}
-                  />
-                  <div className={`
-                    absolute top-2 right-2 w-6 h-6 rounded-full flex items-center justify-center shadow transition-all
-                    ${selected.has(img.index)
-                      ? "bg-amber-500 opacity-100"
-                      : "bg-white/60 opacity-60"
-                    }
-                  `}>
-                    <span className={`text-xs font-bold ${selected.has(img.index) ? "text-white" : "text-amber-400"}`}>
-                      {selected.has(img.index) ? "✓" : "○"}
-                    </span>
-                  </div>
-                </button>
+                <div className="generated-photo-arrival">
+                  <span className="photo-pop-sparkle photo-pop-sparkle-left" aria-hidden>✨</span>
+                  <span className="photo-pop-sparkle photo-pop-sparkle-right" aria-hidden>🐾</span>
+                  <button
+                    type="button"
+                    onClick={() => handleClick(img.index)}
+                    onTouchStart={() => handleTouchStart(img.index, img.data)}
+                    onTouchEnd={() => handleTouchEnd(img.index)}
+                    onTouchMove={() => handleTouchEnd(img.index)}
+                    onContextMenu={(e) => e.preventDefault()}
+                    className={`
+                      generated-photo-card relative block w-full aspect-square rounded-2xl overflow-hidden cursor-pointer transition-all select-none
+                      ${selected.has(img.index)
+                        ? "ring-4 ring-amber-500 scale-105 shadow-lg"
+                        : "ring-2 ring-amber-200 hover:ring-amber-400"
+                      }
+                    `}
+                    aria-pressed={selected.has(img.index)}
+                    aria-label={`${eventLabel} ${img.index + 1}を${selected.has(img.index) ? "選択解除" : "選択"}`}
+                  >
+                    <img
+                      src={img.data}
+                      alt={`${eventLabel} ${img.index + 1}`}
+                      className="w-full h-full object-cover pointer-events-none"
+                      draggable={false}
+                      style={{ WebkitTouchCallout: "none" } as React.CSSProperties}
+                    />
+                    <div className={`
+                      absolute top-2 right-2 w-6 h-6 rounded-full flex items-center justify-center shadow transition-all
+                      ${selected.has(img.index)
+                        ? "bg-amber-500 opacity-100"
+                        : "bg-white/60 opacity-60"
+                      }
+                    `}>
+                      <span className={`text-xs font-bold ${selected.has(img.index) ? "text-white" : "text-amber-400"}`}>
+                        {selected.has(img.index) ? "✓" : "○"}
+                      </span>
+                    </div>
+                  </button>
+                </div>
               )}
               {img.status === "error" && (
                 <div className="aspect-square rounded-2xl bg-red-50 border-2 border-red-200 flex flex-col items-center justify-center gap-1 p-2">
