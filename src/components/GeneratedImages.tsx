@@ -78,16 +78,29 @@ function CompletionCelebration({ image, eventLabel }: { image: GeneratedImage; e
       <div className="completion-photo-stage">
         <span className="completion-particle completion-particle-1" aria-hidden>✨</span>
         <span className="completion-particle completion-particle-2" aria-hidden>🐾</span>
-        <span className="completion-particle completion-particle-3" aria-hidden>💛</span>
+        <span className="completion-particle completion-particle-3" aria-hidden>🧡</span>
         <span className="completion-particle completion-particle-4" aria-hidden>✨</span>
+        <span className="completion-particle completion-particle-5" aria-hidden>♡</span>
+        <span className="completion-particle completion-particle-6" aria-hidden>🐾</span>
         <div className="completion-photo-frame">
-          <div className="completion-photo-label">できあがり！ 🐾</div>
-          <img
-            src={image.data}
-            alt={`${eventLabel} ${image.index + 1}が完成しました`}
-            className="completion-photo-image"
-            draggable={false}
-          />
+          <div className="completion-photo-label">
+            <span className="completion-label-paw" aria-hidden>🐾</span>
+            <span>できあがり！</span>
+          </div>
+          <div className="completion-photo-window">
+            <img
+              src={image.data}
+              alt={`${eventLabel} ${image.index + 1}が完成しました`}
+              className="completion-photo-image"
+              draggable={false}
+            />
+            <span className="completion-photo-shimmer" aria-hidden />
+            <span className="completion-photo-sticker" aria-hidden>♡</span>
+          </div>
+          <div className="completion-photo-footer">
+            <span className="completion-event-chip">{eventLabel}</span>
+            <span className="completion-photo-message">かわいくできたよ</span>
+          </div>
         </div>
       </div>
     </div>,
