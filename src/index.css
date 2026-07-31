@@ -63,7 +63,7 @@ body {
 
 @keyframes completion-backdrop {
   0%, 100% { opacity: 0; }
-  15%, 82% { opacity: 1; }
+  10%, 90% { opacity: 1; }
 }
 
 @keyframes completion-photo-pop {
@@ -72,15 +72,15 @@ body {
     transform: translateY(30vh) scale(0.12) rotate(-10deg);
     filter: blur(8px);
   }
-  38% {
+  20% {
     opacity: 1;
     transform: translateY(-2vh) scale(1.1) rotate(3deg);
     filter: blur(0);
   }
-  55% {
+  30% {
     transform: translateY(1vh) scale(0.97) rotate(-1deg);
   }
-  68% {
+  40%, 86% {
     opacity: 1;
     transform: translateY(0) scale(1) rotate(0);
   }
@@ -120,7 +120,7 @@ body {
   position: absolute;
   inset: 0;
   background: radial-gradient(circle at center, rgb(255 251 235 / 0.92) 0%, rgb(251 191 36 / 0.28) 38%, transparent 72%);
-  animation: completion-backdrop 2000ms ease-in-out both;
+  animation: completion-backdrop 4000ms ease-in-out both;
 }
 
 .completion-photo-stage {
@@ -137,7 +137,7 @@ body {
   border-radius: 2.25rem;
   background: linear-gradient(145deg, #fffdf5, #fde68a);
   box-shadow: 0 28px 70px rgb(120 53 15 / 0.38), 0 0 0 5px rgb(255 255 255 / 0.85);
-  animation: completion-photo-pop 2000ms cubic-bezier(0.18, 0.9, 0.2, 1.18) both;
+  animation: completion-photo-pop 4000ms cubic-bezier(0.18, 0.9, 0.2, 1.18) both;
   transform-origin: 50% 75%;
   will-change: transform, opacity, filter;
 }

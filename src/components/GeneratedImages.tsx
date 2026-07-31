@@ -173,7 +173,7 @@ export function GeneratedImages({ images, eventLabel, onSaved }: Props) {
     if (!activeCelebration) return;
     const timer = window.setTimeout(() => {
       setCelebrationQueue((current) => current.slice(1));
-    }, 2000);
+    }, 4000);
     return () => window.clearTimeout(timer);
   }, [activeCelebration]);
 
