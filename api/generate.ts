@@ -28,6 +28,21 @@ const KEEPS = [
 
 const STYLE = " 必ず実写写真風・高画質・自然な光・背景ぼかしで仕上げてください。CGイラスト・アニメ・漫画・デジタルアート・絵画調は絶対に禁止。";
 
+function getCurrentDateInstruction(): string {
+  const now = new Date();
+  const options: Intl.DateTimeFormatOptions = {
+    timeZone: "Asia/Tokyo",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    weekday: "long",
+  };
+  const gregorianDate = new Intl.DateTimeFormat("ja-JP-u-ca-gregory", options).format(now);
+  const japaneseEraDate = new Intl.DateTimeFormat("ja-JP-u-ca-japanese", options).format(now);
+
+  return `画像内に西暦・和暦・日付・曜日・カレンダー・年賀状・バナーなど時期を示す文字を描く場合は、現在の日本時間である西暦${gregorianDate}（和暦${japaneseEraDate}）と必ず一致させてください。過去年や未来年、異なる月日・曜日を表示してはいけません。`;
+}
+
 // イベント固有のプロンプト（KEEP・STYLEは実行時に付加）
 const EVENTS: Record<string, string[]> = {
   birthday: [
@@ -187,7 +202,7 @@ export default async function handler(req: any, res: any): Promise<void> {
   const prompts = EVENTS[eventId];
   if (!prompts) { res.status(400).json({ error: "Event not found" }); return; }
 
-  const prompt = `${KEEPS[promptIndex]}${prompts[promptIndex]}${STYLE}`;
+  const prompt = `${getCurrentDateInstruction()}${KEEPS[promptIndex]}${prompts[promptIndex]}${STYLE}`;
 
   // ── OpenAI API 呼び出し（リトライあり） ──────────────────────────────
   // gpt-image-2(low)の実測レイテンシが25秒を超えるケースが多く、
