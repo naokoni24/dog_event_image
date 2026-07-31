@@ -59,7 +59,7 @@ function getCurrentDateContext(): {
 
   return {
     dateInstruction: `画像内に西暦・和暦・日付・曜日・カレンダー・年賀状・バナーなど時期を示す文字を描く場合は、現在の日本時間である西暦${gregorianDate}（和暦${japaneseEraDate}）と必ず一致させてください。過去年や未来年、異なる月日・曜日を表示してはいけません。`,
-    newYearInstruction: `お正月の画像では、今年の干支は${zodiac.kanji}（${zodiac.reading}）です。${zodiac.kanji}（${zodiac.reading}）を自然な干支の飾り・置物・絵馬・年賀状のワンポイントなどとして必ず1つ取り入れてください。干支の動物や文字を描く場合は必ず${zodiac.kanji}（${zodiac.reading}）にし、別の年の干支を表示してはいけません。`,
+    newYearInstruction: `お正月の画像では、今年の干支は${zodiac.kanji}（${zodiac.reading}）です。${zodiac.kanji}（${zodiac.reading}）を自然な干支の飾り・置物・絵馬・年賀状のワンポイントなどとして必ず1つ取り入れてください。干支の動物や文字を描く場合は必ず${zodiac.kanji}（${zodiac.reading}）にし、別の年の干支を表示してはいけません。干支の漢字を表示する場合は、正しい日本語の漢字「${zodiac.kanji}」だけを、誤字・崩れた文字・別の漢字にせず正確に描いてください。正確に描けない場合は文字を出さず、干支の動物や置物で表現してください。全体は日本のお正月らしい和風に限定し、神社・鳥居・門松・鏡餅・和紙・和柄・日本の書道を用いてください。中国風の建築・春節の赤提灯・中国語の文字・龍舞などの中国文化要素は一切入れないでください。`,
     zodiacMainInstruction: `この画像は、お正月の3枚のうち干支が主役の1枚です。${zodiac.kanji}（${zodiac.reading}）を画面で最も目立つ主役にし、華やかな年賀状風の構図にしてください。アップロードされた犬本人も、干支の主役を引き立てる位置に自然に一緒に写してください。犬を${zodiac.reading}に置き換えたり、犬の顔・毛並み・体型を変えたりすることは絶対に禁止です。`,
   };
 }
