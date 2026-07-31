@@ -2,7 +2,6 @@ export interface SalonConfig {
   name: string;
   tagline: string;
   emoji: string;
-  watermarkText: string;
   primaryColor: string;
   secondaryColor: string;
   bgGradient: string;
@@ -18,7 +17,6 @@ export const DEFAULT_CONFIG: SalonConfig = {
   name: "わんこイベント日和",
   tagline: "愛犬の写真をイベント画像に変換しよう🎉",
   emoji: "🐾",
-  watermarkText: "🐾 わんこイベント日和 🐾",
   primaryColor: "#92400e",
   secondaryColor: "#b45309",
   bgGradient: "linear-gradient(160deg,#fff7ed 0%,#fef3c7 55%,#fde68a 100%)",
@@ -34,7 +32,6 @@ export const FLUFFY_CONFIG: SalonConfig = {
   name: "Fluffy トリミングサロン",
   tagline: "トリミング後の愛犬を特別な1枚に✂️",
   emoji: "✂️",
-  watermarkText: "✂️ Fluffy トリミングサロン ✂️",
   primaryColor: "#9d174d",
   secondaryColor: "#be185d",
   bgGradient: "linear-gradient(160deg,#fff0f6 0%,#fce7f3 55%,#fbcfe8 100%)",

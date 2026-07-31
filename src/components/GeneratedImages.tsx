@@ -2,7 +2,6 @@ import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import JSZip from "jszip";
 import type { GeneratedImage } from "../types";
-import { SALON } from "../lib/salonConfig";
 
 interface Props {
   images: GeneratedImage[];
@@ -32,47 +31,8 @@ function LoadingCard() {
   );
 }
 
-// Canvasでウォーターマークを画像に焼き込む
-function useWatermarked(dataUrl: string): string | null {
-  const [result, setResult] = useState<string | null>(null);
-  useEffect(() => {
-    const img = new Image();
-    img.onload = () => {
-      const canvas = document.createElement("canvas");
-      canvas.width = img.width;
-      canvas.height = img.height;
-      const ctx = canvas.getContext("2d")!;
-      ctx.drawImage(img, 0, 0);
-      const text = SALON.watermarkText;
-      const fontSize = Math.max(14, Math.floor(img.width / 16));
-      ctx.font = `bold ${fontSize}px sans-serif`;
-      ctx.save();
-      ctx.translate(img.width / 2, img.height / 2);
-      ctx.rotate(-Math.PI / 6);
-      const lineH = fontSize * 3;
-      for (let r = -4; r <= 4; r++) {
-        for (let c = -2; c <= 2; c++) {
-          const x = c * img.width * 0.65 - ctx.measureText(text).width / 2;
-          const y = r * lineH;
-          ctx.strokeStyle = "rgba(0,0,0,0.2)";
-          ctx.lineWidth = 2;
-          ctx.strokeText(text, x, y);
-          ctx.fillStyle = "rgba(255,255,255,0.3)";
-          ctx.fillText(text, x, y);
-        }
-      }
-      ctx.restore();
-      setResult(canvas.toDataURL("image/jpeg", 0.92));
-    };
-    img.src = dataUrl;
-  }, [dataUrl]);
-  return result;
-}
-
-// ウォーターマーク付きモーダル
-function WatermarkModal({ dataUrl, onClose }: { dataUrl: string; onClose: () => void }) {
-  const watermarked = useWatermarked(dataUrl);
-
+// 生成画像のプレビュー
+function PreviewModal({ dataUrl, onClose }: { dataUrl: string; onClose: () => void }) {
   // onPointerDownで閉じると指を離したイベントが下の要素に届くため、
   // 少し遅延させてタッチイベントが完了してから閉じる
   const handleClose = (e: React.PointerEvent) => {
@@ -90,7 +50,7 @@ function WatermarkModal({ dataUrl, onClose }: { dataUrl: string; onClose: () => 
           onPointerDown={(e) => e.stopPropagation()}
         >
           <img
-            src={watermarked ?? dataUrl}
+            src={dataUrl}
             alt="生成画像"
             className="block rounded-2xl overflow-hidden"
             style={{ maxWidth: "100vw", maxHeight: "100svh", width: "auto", height: "auto" }}
@@ -137,7 +97,7 @@ function CompletionCelebration({ image, eventLabel }: { image: GeneratedImage; e
 
 export function GeneratedImages({ images, eventLabel, onSaved }: Props) {
   const [selected, setSelected] = useState<Set<number>>(new Set());
-  const [watermarkData, setWatermarkData] = useState<string | null>(null);
+  const [previewData, setPreviewData] = useState<string | null>(null);
   const [celebrationQueue, setCelebrationQueue] = useState<GeneratedImage[]>([]);
   const celebratedIndices = useRef<Set<number>>(new Set());
   const longPressTimers = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
@@ -201,7 +161,7 @@ export function GeneratedImages({ images, eventLabel, onSaved }: Props) {
     longPressTriggered.current.delete(index);
     const timer = setTimeout(() => {
       longPressTriggered.current.add(index);
-      setWatermarkData(dataUrl);
+      setPreviewData(dataUrl);
       longPressTimers.current.delete(index);
       // touchend後にclickが発生しなかった場合も、次回タップを誤って無視しない。
       const suppression = setTimeout(() => {
@@ -274,8 +234,8 @@ export function GeneratedImages({ images, eventLabel, onSaved }: Props) {
 
   return (
     <>
-      {watermarkData && (
-        <WatermarkModal dataUrl={watermarkData} onClose={() => setWatermarkData(null)} />
+      {previewData && (
+        <PreviewModal dataUrl={previewData} onClose={() => setPreviewData(null)} />
       )}
       {activeCelebration && (
         <CompletionCelebration image={activeCelebration} eventLabel={eventLabel} />
