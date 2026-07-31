@@ -164,10 +164,7 @@ export function GeneratedImages({ images, eventLabel, onSaved }: Props) {
     if (newlyCompleted.length === 0) return;
 
     newlyCompleted.forEach((image) => celebratedIndices.current.add(image.index));
-    const timer = window.setTimeout(() => {
-      setCelebrationQueue((current) => [...current, ...newlyCompleted]);
-    }, 0);
-    return () => window.clearTimeout(timer);
+    setCelebrationQueue((current) => [...current, ...newlyCompleted]);
   }, [images]);
 
   const activeCelebration = celebrationQueue[0];
