@@ -219,6 +219,19 @@ export default async function handler(req: any, res: any): Promise<void> {
   const prompts = EVENTS[eventId];
   if (!prompts) { res.status(400).json({ error: "Event not found" }); return; }
 
+  // ── 月次上限チェック ─────────────────────────────────────────────────
+  // remainingはこれまで表示専用で、上限到達後も生成・課金が続いてしまっていたため、
+  // OpenAI呼び出し前にブロックする（Redis障害時はブロックせず可用性を優先）。
+  try {
+    const redis = getRedis();
+    const monthlyCount = Number.parseInt((await redis.get(MONTHLY_KEY())) ?? "0", 10);
+    const usedGenerations = Math.ceil(monthlyCount / IMAGES_PER_GENERATION);
+    if (usedGenerations >= getMonthlyGenerationLimit()) {
+      res.status(429).json({ error: "生成回数の上限に達しました。", remaining: 0 });
+      return;
+    }
+  } catch { /* Redis障害時はブロックしない */ }
+
   const dateContext = getCurrentDateContext();
   const eventContextInstruction = eventId === "newyear"
     ? `${dateContext.newYearInstruction}${promptIndex === 2 ? dateContext.zodiacMainInstruction : ""}`
