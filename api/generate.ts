@@ -39,22 +39,14 @@ function getCurrentDateContext(): {
   zodiacMainInstruction: string;
 } {
   const now = new Date();
-  const options: Intl.DateTimeFormatOptions = {
-    timeZone: "Asia/Tokyo",
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-    weekday: "long",
-  };
-  const gregorianFormatter = new Intl.DateTimeFormat("ja-JP-u-ca-gregory", options);
-  const gregorianDate = gregorianFormatter.format(now);
-  const japaneseEraDate = new Intl.DateTimeFormat("ja-JP-u-ca-japanese", options).format(now);
-  const yearPart = gregorianFormatter.formatToParts(now).find((part) => part.type === "year");
+  const yearPart = new Intl.DateTimeFormat("ja-JP-u-ca-gregory", { timeZone: "Asia/Tokyo", year: "numeric" })
+    .formatToParts(now)
+    .find((part) => part.type === "year");
   const currentYear = Number(yearPart?.value);
   const zodiac = ZODIAC[((currentYear - 2020) % ZODIAC.length + ZODIAC.length) % ZODIAC.length];
 
   return {
-    dateInstruction: `画像内に西暦・和暦・日付・曜日・カレンダー・年賀状・バナーなど時期を示す文字を描く場合は、現在の日本時間である西暦${gregorianDate}（和暦${japaneseEraDate}）と必ず一致させてください。過去年や未来年、異なる月日・曜日を表示してはいけません。`,
+    dateInstruction: "画像内に西暦・和暦・日付・曜日・カレンダー・年賀状・バナーなど時期を示す文字や数字は一切描かないでください。",
     newYearInstruction: `お正月の画像では、今年の干支である${zodiac}を、自然な動物または文字のない素朴な置物として必ず1つ取り入れ、別の年の干支は入れないでください。画像内には年号や干支名を含む読める文字・数字・記号・ロゴを一切描かず、絵馬・札・看板・衣装・胸当て・メダル・置物・台座も無地または日本の伝統文様だけにしてください。全体は畳・障子・自然な木・神社の鳥居・門松・鏡餅・しめ縄・紅白の水引・和紙を用いた、落ち着いた日本のお正月にしてください。春節の赤提灯・丸い吊り飾り・中国結び・過剰な赤金装飾・中国風建築・中国式の龍舞や獅子舞・干支の赤金の胸当てや鞍など、中国の春節に見える要素は禁止です。`,
     zodiacMainInstruction: `この画像は、お正月の3枚のうち干支が主役の1枚です。${zodiac}の動物または文字のない素朴な置物を画面で最も目立つ主役にし、日本の正月飾りと調和する構図にしてください。アップロードされた犬本人も、干支の主役を引き立てる位置に自然に一緒に写してください。犬を${zodiac}に置き換えたり、犬の顔・毛並み・体型を変えたりすることは絶対に禁止です。`,
   };
