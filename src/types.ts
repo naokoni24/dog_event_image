@@ -7,7 +7,10 @@ export type EventId =
   | "newyear"
   | "tsuyu"
   | "natsumaturi"
-  | "resort";
+  | "resort"
+  | "momiji"
+  | "otsukimi"
+  | "undokai";
 
 export interface EventConfig {
   id: EventId;
