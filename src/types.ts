@@ -1,16 +1,16 @@
 export type EventId =
-  | "christmas"
-  | "birthday"
-  | "halloween"
-  | "mothersday"
-  | "valentine"
   | "newyear"
+  | "valentine"
+  | "mothersday"
   | "tsuyu"
   | "natsumaturi"
   | "resort"
-  | "momiji"
   | "otsukimi"
-  | "undokai";
+  | "undokai"
+  | "halloween"
+  | "momiji"
+  | "christmas"
+  | "birthday";
 
 export interface EventConfig {
   id: EventId;

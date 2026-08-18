@@ -2,30 +2,6 @@ import type { EventConfig } from "../types";
 
 export const EVENTS: EventConfig[] = [
   {
-    id: "birthday",
-    label: "誕生日",
-    emoji: "🎂",
-    color: "#f39c12",
-  },
-  {
-    id: "mothersday",
-    label: "母の日",
-    emoji: "💐",
-    color: "#9b59b6",
-  },
-  {
-    id: "halloween",
-    label: "ハロウィン",
-    emoji: "🎃",
-    color: "#e67e22",
-  },
-  {
-    id: "christmas",
-    label: "クリスマス",
-    emoji: "🎄",
-    color: "#e74c3c",
-  },
-  {
     id: "newyear",
     label: "お正月",
     emoji: "🎍",
@@ -36,6 +12,12 @@ export const EVENTS: EventConfig[] = [
     label: "バレンタイン",
     emoji: "💝",
     color: "#e91e8c",
+  },
+  {
+    id: "mothersday",
+    label: "母の日",
+    emoji: "💐",
+    color: "#9b59b6",
   },
   {
     id: "tsuyu",
@@ -56,12 +38,6 @@ export const EVENTS: EventConfig[] = [
     color: "#0ea5e9",
   },
   {
-    id: "momiji",
-    label: "紅葉",
-    emoji: "🍁",
-    color: "#c0392b",
-  },
-  {
     id: "otsukimi",
     label: "お月見",
     emoji: "🌕",
@@ -72,5 +48,29 @@ export const EVENTS: EventConfig[] = [
     label: "運動会",
     emoji: "🏃",
     color: "#16a085",
+  },
+  {
+    id: "halloween",
+    label: "ハロウィン",
+    emoji: "🎃",
+    color: "#e67e22",
+  },
+  {
+    id: "momiji",
+    label: "紅葉",
+    emoji: "🍁",
+    color: "#c0392b",
+  },
+  {
+    id: "christmas",
+    label: "クリスマス",
+    emoji: "🎄",
+    color: "#e74c3c",
+  },
+  {
+    id: "birthday",
+    label: "誕生日",
+    emoji: "🎂",
+    color: "#f39c12",
   },
 ];
