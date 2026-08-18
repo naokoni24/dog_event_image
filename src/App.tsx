@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { ImageUploader } from "./components/ImageUploader";
 import { EventSelector } from "./components/EventSelector";
 import { GeneratedImages } from "./components/GeneratedImages";
-import { generateEventImage } from "./lib/hf";
+import { generateEventImage, GenerationError } from "./lib/hf";
 import { EVENTS } from "./lib/events";
 import { SALON } from "./lib/salonConfig";
 import AdminPage from "./pages/AdminPage";
@@ -91,6 +91,9 @@ function PublicApp() {
       } catch (err) {
         console.error("[generate] error:", err);
         const message = err instanceof Error ? err.message : String(err) || "エラーが発生しました";
+        if (err instanceof GenerationError && err.remaining !== undefined) {
+          setRemainingCount((prev) => prev === null ? err.remaining! : Math.min(prev, err.remaining!));
+        }
         setGeneratedImages((prev) =>
           prev.map((img) =>
             img.index === i ? { ...img, status: "error", error: message } : img

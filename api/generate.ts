@@ -1,5 +1,5 @@
 import OpenAI, { toFile } from "openai";
-import { getMonthlyGenerationLimit, getRedis, COUNTER_KEY, IMAGES_PER_GENERATION, MONTHLY_KEY } from "./_redis.js";
+import { getMonthlyGenerationLimit, getRedis, COUNTER_KEY, IMAGES_PER_GENERATION, MONTHLY_KEY, MONTHLY_KEY_TTL_SEC } from "./_redis.js";
 
 // ── イベントプロンプト（生成の実体）────────────────────────────────────────
 //    実際の生成プロンプトはここで組み立てる。フロントの src/lib/events.ts は
@@ -127,6 +127,18 @@ const EVENTS: Record<string, string[]> = {
 
 const VALID_EVENT_IDS = new Set(Object.keys(EVENTS));
 
+// KEEPS・全イベントの本数がIMAGES_PER_GENERATIONとズレていないかを起動時に検証する。
+// ズレていると prompts[promptIndex] が undefined になり、文字列 "undefined" が
+// そのままプロンプトに混入してOpenAIへ送られてしまうため、気づかず本番に出る前に落とす。
+if (KEEPS.length !== IMAGES_PER_GENERATION) {
+  throw new Error(`KEEPS.length (${KEEPS.length}) must equal IMAGES_PER_GENERATION (${IMAGES_PER_GENERATION})`);
+}
+for (const [id, eventPrompts] of Object.entries(EVENTS)) {
+  if (eventPrompts.length !== IMAGES_PER_GENERATION) {
+    throw new Error(`EVENTS.${id} has ${eventPrompts.length} prompts, expected ${IMAGES_PER_GENERATION}`);
+  }
+}
+
 // ── レートリミット ────────────────────────────────────────────────────────
 // Redis（全インスタンス共通）で固定ウィンドウ制限。サーバレスは複数インスタンスが
 // 並走するため in-memory だけでは上限をすり抜けられる。Redis 障害時のみ
@@ -216,7 +228,7 @@ export default async function handler(req: any, res: any): Promise<void> {
   if (typeof eventId !== "string" || !VALID_EVENT_IDS.has(eventId)) {
     res.status(400).json({ error: "Invalid event ID" }); return;
   }
-  if (typeof promptIndex !== "number" || !Number.isInteger(promptIndex) || promptIndex < 0 || promptIndex > 2) {
+  if (typeof promptIndex !== "number" || !Number.isInteger(promptIndex) || promptIndex < 0 || promptIndex > IMAGES_PER_GENERATION - 1) {
     res.status(400).json({ error: "Invalid prompt index" }); return;
   }
   if (typeof mimeType !== "string" || !ALLOWED_MIME.has(mimeType)) {
@@ -235,18 +247,37 @@ export default async function handler(req: any, res: any): Promise<void> {
   const prompts = EVENTS[eventId];
   if (!prompts) { res.status(400).json({ error: "Event not found" }); return; }
 
-  // ── 月次上限チェック ─────────────────────────────────────────────────
-  // remainingはこれまで表示専用で、上限到達後も生成・課金が続いてしまっていたため、
-  // OpenAI呼び出し前にブロックする（Redis障害時はブロックせず可用性を優先）。
+  // ── 月次上限チェック（アトミックに枠を予約してから判定） ───────────────
+  // 旧実装は「読んで判定→生成後にインクリメント」だったため、1回の生成が
+  // 3並列リクエストになることもあり、複数リクエストが同時に同じ現在値を読んで
+  // 全部通過してしまうレースがあった（上限を超えて課金され得る）。
+  // 先にINCRでこの画像1枚ぶんの枠を確保し、それで上限を超えるならDECRで
+  // 即座に取り消すことで、判定と消費をアトミックにする。
+  const monthKey = MONTHLY_KEY();
+  let monthlyReserved = false;
+  let remainingAfterReservation: number | undefined;
   try {
     const redis = getRedis();
-    const monthlyCount = Number.parseInt((await redis.get(MONTHLY_KEY())) ?? "0", 10);
+    const monthlyCount = await redis.incr(monthKey);
+    if (monthlyCount === 1) await redis.expire(monthKey, MONTHLY_KEY_TTL_SEC);
     const usedGenerations = Math.ceil(monthlyCount / IMAGES_PER_GENERATION);
-    if (usedGenerations >= getMonthlyGenerationLimit()) {
+    const limit = getMonthlyGenerationLimit();
+    if (usedGenerations > limit) {
+      await redis.decr(monthKey);
       res.status(429).json({ error: "生成回数の上限に達しました。", remaining: 0 });
       return;
     }
-  } catch { /* Redis障害時はブロックしない */ }
+    monthlyReserved = true;
+    remainingAfterReservation = Math.max(0, limit - usedGenerations);
+  } catch { /* Redis障害時はブロックしない（可用性優先） */ }
+
+  // 実際には画像が生成されなかった場合に予約を取り消す。
+  // 失敗した分までユーザーの月次枠を消費させないため。
+  async function releaseMonthlyReservation(): Promise<void> {
+    if (!monthlyReserved) return;
+    monthlyReserved = false;
+    try { await getRedis().decr(monthKey); } catch { /* best-effort */ }
+  }
 
   const dateContext = getCurrentDateContext();
   const eventContextInstruction = eventId === "newyear"
@@ -263,6 +294,13 @@ export default async function handler(req: any, res: any): Promise<void> {
   const openai = new OpenAI({ apiKey, timeout: 90_000, maxRetries: 0 });
   const MAX_RETRIES = 2;
   const RETRY_DELAY_MS = 1000;
+
+  // ステータス不明（ネットワーク断・タイムアウト等）・429・5xxは一時的な
+  // 失敗の可能性があるためリトライする。400番台（コンテンツポリシー違反や
+  // 不正なパラメータなど）は再試行しても必ず同じ結果になるため即座に諦める。
+  function isRetryableStatus(status: number | undefined): boolean {
+    return status === undefined || status === 429 || status >= 500;
+  }
 
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     try {
@@ -285,20 +323,10 @@ export default async function handler(req: any, res: any): Promise<void> {
 
       const result = response.data?.[0];
       if (result?.b64_json) {
-        // 生成成功 → グローバル・月別カウンターをインクリメント
-        let remaining: number | undefined;
-        try {
-          const redis = getRedis();
-          const monthKey = MONTHLY_KEY();
-          const [, monthlyCount] = await Promise.all([
-            redis.incr(COUNTER_KEY),
-            redis.incr(monthKey),
-          ]);
-          const usedGenerations = Math.ceil(monthlyCount / IMAGES_PER_GENERATION);
-          remaining = Math.max(0, getMonthlyGenerationLimit() - usedGenerations);
-        } catch { /* カウント失敗でも画像は返す */ }
+        // 生成成功 → 総生成数カウンターを加算（月次分は事前予約済みのため加算不要）
+        try { await getRedis().incr(COUNTER_KEY); } catch { /* カウント失敗でも画像は返す */ }
         const outputFormat = response.output_format ?? "png";
-        res.status(200).json({ data: result.b64_json, mimeType: `image/${outputFormat}`, remaining });
+        res.status(200).json({ data: result.b64_json, mimeType: `image/${outputFormat}`, remaining: remainingAfterReservation });
         return;
       }
 
@@ -307,7 +335,8 @@ export default async function handler(req: any, res: any): Promise<void> {
         await new Promise(r => setTimeout(r, RETRY_DELAY_MS * attempt));
         continue;
       }
-      res.status(500).json({ error: "画像の生成に失敗しました。もう一度お試しください。" });
+      await releaseMonthlyReservation();
+      res.status(500).json({ error: "画像の生成に失敗しました。もう一度お試しください。", remaining: remainingAfterReservation });
       return;
 
     } catch (err) {
@@ -316,16 +345,17 @@ export default async function handler(req: any, res: any): Promise<void> {
       console.error(`[generate] attempt=${attempt} error:`, msg);
       const isRateLimit = status === 429 || msg.includes("429") || msg.toLowerCase().includes("quota") || msg.toLowerCase().includes("rate");
 
-      if (attempt < MAX_RETRIES) {
+      if (attempt < MAX_RETRIES && isRetryableStatus(status)) {
         // レートリミット or 一時エラーはリトライ
         await new Promise(r => setTimeout(r, RETRY_DELAY_MS * attempt));
         continue;
       }
 
+      await releaseMonthlyReservation();
       const userMsg = isRateLimit
         ? "生成が混み合っています。少し待ってから再試行してください。"
         : `画像の生成に失敗しました。もう一度お試しください。`;
-      res.status(500).json({ error: userMsg });
+      res.status(500).json({ error: userMsg, remaining: remainingAfterReservation });
       return;
     }
   }

@@ -1,5 +1,16 @@
 import type { EventConfig } from "../types";
 
+// エラー応答にもremaining（月次残り回数）が入ることがある。
+// 上限到達時などにバッジの表示を古いままにしないよう、エラーでも拾えるようにする。
+export class GenerationError extends Error {
+  remaining?: number;
+  constructor(message: string, remaining?: number) {
+    super(message);
+    this.name = "GenerationError";
+    this.remaining = remaining;
+  }
+}
+
 const MAX_SIZE = 1024; // px
 const JPEG_QUALITY = 0.85;
 const MAX_BYTES = 3 * 1024 * 1024; // 3MB（Vercelの4.5MB制限に余裕を持たせる）
@@ -84,8 +95,9 @@ export async function generateEventImage(
   if (!response.ok) {
     const text = await response.text().catch(() => "");
     let message = `HTTP ${response.status}`;
+    let remaining: number | undefined;
     try {
-      const err = JSON.parse(text) as { error?: unknown };
+      const err = JSON.parse(text) as { error?: unknown; remaining?: number };
       if (typeof err.error === "string") {
         message = err.error;
       } else if (err.error && typeof err.error === "object") {
@@ -94,10 +106,11 @@ export async function generateEventImage(
       } else if (text) {
         message += `: ${text.slice(0, 100)}`;
       }
+      remaining = err.remaining;
     } catch {
       if (text) message += `: ${text.slice(0, 100)}`;
     }
-    throw new Error(message);
+    throw new GenerationError(message, remaining);
   }
 
   const result = (await response.json()) as { data: string; mimeType: string; remaining?: number };
