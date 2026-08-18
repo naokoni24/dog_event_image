@@ -17,7 +17,6 @@ export interface EventConfig {
   label: string;
   emoji: string;
   color: string;
-  prompts: string[];
 }
 
 export interface GeneratedImage {
