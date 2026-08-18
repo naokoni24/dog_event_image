@@ -42,8 +42,13 @@ function PublicApp() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [remainingCount, setRemainingCount] = useState<number | null>(null);
   const [genKey, setGenKey] = useState(0);
+  const [formError, setFormError] = useState<string | null>(null);
 
   const selectedEventConfig = EVENTS.find((e) => e.id === selectedEvent);
+
+  useEffect(() => {
+    if (dogImage && selectedEvent) setFormError(null);
+  }, [dogImage, selectedEvent]);
 
   useEffect(() => {
     fetch("/api/count")
@@ -53,7 +58,17 @@ function PublicApp() {
   }, []);
 
   async function handleGenerate() {
-    if (!dogImage || !selectedEventConfig) return;
+    if (!dogImage || !selectedEventConfig) {
+      if (!dogImage && !selectedEventConfig) {
+        setFormError("わんこの写真をアップロードして、イベントを選んでください");
+      } else if (!dogImage) {
+        setFormError("わんこの写真をアップロードしてください");
+      } else {
+        setFormError("イベントを選んでください");
+      }
+      return;
+    }
+    setFormError(null);
 
     // すでに生成済み画像がある場合は確認
     const hasDone = generatedImages.some(img => img.status === "done");
@@ -106,7 +121,7 @@ function PublicApp() {
     setIsGenerating(false);
   }
 
-  const canGenerate = !!dogImage && !!selectedEvent && !isGenerating;
+  const canGenerate = !isGenerating;
 
   return (
     <div
@@ -200,6 +215,16 @@ function PublicApp() {
               ? `${SALON.emoji} ${selectedEventConfig.emoji} ${selectedEventConfig.label}の画像を生成 ${SALON.emoji}`
               : `${SALON.emoji} 画像を生成する ${SALON.emoji}`}
         </button>
+
+        {/* 入力不足エラー */}
+        {formError && (
+          <p
+            role="alert"
+            className="text-xs text-center bg-red-50 border border-red-200 rounded-2xl px-3 py-2 text-red-600"
+          >
+            ⚠️ {formError}
+          </p>
+        )}
 
         {/* 生成結果 */}
         {generatedImages.length > 0 && selectedEventConfig && (
