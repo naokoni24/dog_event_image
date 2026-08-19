@@ -50,6 +50,12 @@ export const EVENTS: EventConfig[] = [
     color: "#16a085",
   },
   {
+    id: "imohori",
+    label: "芋掘り",
+    emoji: "🍠",
+    color: "#a0522d",
+  },
+  {
     id: "halloween",
     label: "ハロウィン",
     emoji: "🎃",
