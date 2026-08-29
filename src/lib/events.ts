@@ -56,6 +56,12 @@ export const EVENTS: EventConfig[] = [
     color: "#a0522d",
   },
   {
+    id: "hiroshima",
+    label: "広島観光",
+    emoji: "⛩️",
+    color: "#b33939",
+  },
+  {
     id: "halloween",
     label: "ハロウィン",
     emoji: "🎃",

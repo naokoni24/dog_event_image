@@ -8,6 +8,7 @@ export type EventId =
   | "otsukimi"
   | "undokai"
   | "imohori"
+  | "hiroshima"
   | "halloween"
   | "momiji"
   | "christmas"
