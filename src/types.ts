@@ -8,11 +8,11 @@ export type EventId =
   | "otsukimi"
   | "undokai"
   | "imohori"
-  | "hiroshima"
   | "halloween"
   | "momiji"
   | "christmas"
-  | "birthday";
+  | "birthday"
+  | "hiroshima";
 
 export interface EventConfig {
   id: EventId;
