@@ -320,7 +320,7 @@ export default async function handler(req: any, res: any): Promise<void> {
         // gpt-image-2はinput_fidelityを変更できず常に高忠実度で処理するため、
         // ポーズ・構図が元写真からほぼ変わらない問題が発生した。
         // gpt-image-1.5はinput_fidelity: "low"でより自由に変化させられる。
-        model: "gpt-image-1.5",
+        model: "gpt-image-2.5-flare",
         image,
         prompt,
         // low: 速度・コスト優先の最安ティア（画質は無印より下がる）
