@@ -1,5 +1,5 @@
 import OpenAI, { toFile } from "openai";
-import { getMonthlyGenerationLimit, getRedis, COUNTER_KEY, IMAGES_PER_GENERATION, MONTHLY_KEY, MONTHLY_KEY_TTL_SEC } from "./_redis.js";
+import { getMonthlyGenerationLimit, getRedis, incrWithTtl, COUNTER_KEY, IMAGES_PER_GENERATION, MONTHLY_KEY, MONTHLY_KEY_TTL_SEC } from "./_redis.js";
 
 // ── イベントプロンプト（生成の実体）────────────────────────────────────────
 //    実際の生成プロンプトはここで組み立てる。フロントの src/lib/events.ts は
@@ -44,6 +44,7 @@ const ZODIAC = [
 
 function getCurrentDateContext(): {
   dateInstruction: string;
+  dateInstructionWithMessage: string;
   newYearInstruction: string;
   zodiacMainInstruction: string;
 } {
@@ -56,6 +57,8 @@ function getCurrentDateContext(): {
 
   return {
     dateInstruction: "画像内に西暦・和暦・日付・曜日・カレンダー・年賀状・バナーなど時期を示す文字や数字は一切描かないでください。ろうそくや飾りを数字の形にするなど、年齢や年数を示す数字も描かないでください。",
+    // 共通の文字禁止と、イベント文で指定した英語メッセージの表示指示が矛盾しないよう例外を明示する。
+    dateInstructionWithMessage: "画像内に西暦・和暦・日付・曜日・カレンダーなど時期を示す数字や、年齢・年数を示す数字は一切描かないでください。文字は、このあと指定する英語のメッセージ1つだけを例外として、指定された場所に指定どおり表示し、それ以外の文字は描かないでください。",
     newYearInstruction: `お正月の画像では、今年の干支である${zodiac}を、自然な動物または文字のない素朴な置物として必ず1つ取り入れ、別の年の干支は入れないでください。画像内には年号や干支名を含む読める文字・数字・記号・ロゴを一切描かず、絵馬・札・看板・衣装・胸当て・メダル・置物・台座も無地または日本の伝統文様だけにしてください。全体は畳・障子・自然な木・神社の鳥居・門松・鏡餅・しめ縄・紅白の水引・和紙を用いた、落ち着いた日本のお正月にしてください。春節の赤提灯・丸い吊り飾り・中国結び・過剰な赤金装飾・中国風建築・中国式の龍舞や獅子舞・干支の赤金の胸当てや鞍など、中国の春節に見える要素は禁止です。`,
     zodiacMainInstruction: `この画像は、お正月の3枚のうち干支が主役の1枚です。${zodiac}の動物または文字のない素朴な置物を画面で最も目立つ主役にし、日本の正月飾りと調和する構図にしてください。アップロードされた犬本人も、干支の主役を引き立てる位置に自然に一緒に写してください。犬を${zodiac}に置き換えたり、犬の顔・毛並み・体型を変えたりすることは絶対に禁止です。`,
   };
@@ -137,6 +140,12 @@ const EVENTS: Record<string, string[]> = {
 
 const VALID_EVENT_IDS = new Set(Object.keys(EVENTS));
 
+// 英語メッセージを1か所だけ表示させる枚目（イベントID → promptIndex）。
+const MESSAGE_PROMPT_INDEX: Record<string, number> = {
+  mothersday: 2,
+  halloween: 2,
+};
+
 // KEEPS・全イベントの本数がIMAGES_PER_GENERATIONとズレていないかを起動時に検証する。
 // ズレていると prompts[promptIndex] が undefined になり、文字列 "undefined" が
 // そのままプロンプトに混入してOpenAIへ送られてしまうため、気づかず本番に出る前に落とす。
@@ -195,8 +204,7 @@ async function checkRateLimit(ip: string): Promise<boolean> {
   try {
     const redis = getRedis();
     const key = `wanko_rl:${ip}`;
-    const count = await redis.incr(key);
-    if (count === 1) await redis.expire(key, RATE_WINDOW_SEC);
+    const count = await incrWithTtl(redis, key, RATE_WINDOW_SEC);
     return count <= RATE_LIMIT;
   } catch {
     // Redis 障害時は in-memory にフォールバック
@@ -268,8 +276,7 @@ export default async function handler(req: any, res: any): Promise<void> {
   let remainingAfterReservation: number | undefined;
   try {
     const redis = getRedis();
-    const monthlyCount = await redis.incr(monthKey);
-    if (monthlyCount === 1) await redis.expire(monthKey, MONTHLY_KEY_TTL_SEC);
+    const monthlyCount = await incrWithTtl(redis, monthKey, MONTHLY_KEY_TTL_SEC);
     const usedGenerations = Math.ceil(monthlyCount / IMAGES_PER_GENERATION);
     const limit = getMonthlyGenerationLimit();
     if (usedGenerations > limit) {
@@ -292,7 +299,9 @@ export default async function handler(req: any, res: any): Promise<void> {
   const dateContext = getCurrentDateContext();
   const eventContextInstruction = eventId === "newyear"
     ? `${dateContext.newYearInstruction}${promptIndex === 2 ? dateContext.zodiacMainInstruction : ""}`
-    : dateContext.dateInstruction;
+    : MESSAGE_PROMPT_INDEX[eventId] === promptIndex
+      ? dateContext.dateInstructionWithMessage
+      : dateContext.dateInstruction;
   const prompt = `${KEEPS[promptIndex]}${eventContextInstruction}${prompts[promptIndex]}${STYLE}`;
 
   // ── OpenAI API 呼び出し（リトライあり） ──────────────────────────────

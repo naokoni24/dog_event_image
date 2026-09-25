@@ -19,6 +19,22 @@ export function getRedis(): Redis {
 
 export const COUNTER_KEY = "wanko_total_generated";
 
+// INCRとEXPIREを別コマンドで送ると、EXPIREだけ失敗した場合にTTLのないキーが残る
+// （レート制限キーならそのIPが恒久的にブロックされる）。Luaスクリプトで
+// アトミックに実行し、過去に残ったTTLなしのキーもここで期限を付け直す。
+const INCR_WITH_TTL_SCRIPT = `
+local count = redis.call("INCR", KEYS[1])
+if count == 1 or redis.call("TTL", KEYS[1]) == -1 then
+  redis.call("EXPIRE", KEYS[1], ARGV[1])
+end
+return count
+`;
+
+/** キーをINCRし、TTLが未設定なら同時に設定する。INCR後の値を返す。 */
+export async function incrWithTtl(redis: Redis, key: string, ttlSec: number): Promise<number> {
+  return Number(await redis.eval(INCR_WITH_TTL_SCRIPT, 1, key, ttlSec));
+}
+
 /** 1か月に実行できる生成回数。Vercelの環境変数で変更する。 */
 export function getMonthlyGenerationLimit(): number {
   const value = Number.parseInt(process.env.MONTHLY_GENERATION_LIMIT ?? "50", 10);
