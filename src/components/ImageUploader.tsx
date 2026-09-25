@@ -73,7 +73,12 @@ export function ImageUploader({ onImageSelected, currentImage }: Props) {
         type="file"
         accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
         className="hidden"
-        onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) handleFile(file);
+          // 同じファイルを選び直しても onChange が発火するようにする。
+          e.target.value = "";
+        }}
       />
     </div>
   );

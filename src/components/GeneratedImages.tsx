@@ -19,7 +19,8 @@ async function downloadImage(dataUrl: string, index: number, label: string) {
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  // click直後にrevokeするとSafari/Firefoxで保存が始まる前にURLが無効になることがある。
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 
 function LoadingCard() {
@@ -229,7 +230,7 @@ export function GeneratedImages({ images, eventLabel, onSaved }: Props) {
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
   }
 
   return (

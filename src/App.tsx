@@ -42,6 +42,8 @@ function PublicApp() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [remainingCount, setRemainingCount] = useState<number | null>(null);
   const [genKey, setGenKey] = useState(0);
+  // 生成後に別イベントを選んでも、結果の見出し・保存ファイル名は生成時のイベント名のままにする。
+  const [generatedEventLabel, setGeneratedEventLabel] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
 
   const selectedEventConfig = EVENTS.find((e) => e.id === selectedEvent);
@@ -79,6 +81,7 @@ function PublicApp() {
 
     setIsGenerating(true);
     setGenKey(k => k + 1);
+    setGeneratedEventLabel(selectedEventConfig.label);
     setGeneratedImages([]);
 
     const initial: GeneratedImage[] = Array.from({ length: IMAGE_COUNT }, (_, i) => ({
@@ -227,12 +230,12 @@ function PublicApp() {
         )}
 
         {/* 生成結果 */}
-        {generatedImages.length > 0 && selectedEventConfig && (
+        {generatedImages.length > 0 && (
           <section className="bg-white/80 backdrop-blur-sm rounded-3xl p-5 shadow border-2" style={{ borderColor: SALON.borderColor }}>
             <GeneratedImages
               key={genKey}
               images={generatedImages}
-              eventLabel={selectedEventConfig.label}
+              eventLabel={generatedEventLabel}
             />
           </section>
         )}

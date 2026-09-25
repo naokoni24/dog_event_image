@@ -50,6 +50,9 @@ async function compressImage(dataUrl: string): Promise<{ base64: string; mimeTyp
         canvas.width = width;
         canvas.height = height;
         const ctx = canvas.getContext("2d")!;
+        // JPEGは透過を持てず、透明部分が黒くなるため白で下地を塗る。
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, width, height);
         ctx.drawImage(img, 0, 0, width, height);
 
         // まずJPEGで圧縮

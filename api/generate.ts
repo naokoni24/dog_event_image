@@ -314,7 +314,8 @@ export default async function handler(req: any, res: any): Promise<void> {
 
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     try {
-      const image = await toFile(Buffer.from(imageData, "base64"), "photo.jpg", { type: mimeType });
+      const extension = mimeType === "image/png" ? "png" : mimeType === "image/webp" ? "webp" : "jpg";
+      const image = await toFile(Buffer.from(imageData, "base64"), `photo.${extension}`, { type: mimeType });
 
       const response = await openai.images.edit({
         // gpt-image-2・gpt-image-2.5系（flare/sunburst）はinput_fidelityパラメータ
@@ -354,7 +355,9 @@ export default async function handler(req: any, res: any): Promise<void> {
       const msg = err instanceof Error ? err.message : "Unknown error";
       const status = (err as { status?: number })?.status;
       console.error(`[generate] attempt=${attempt} error:`, msg);
-      const isRateLimit = status === 429 || msg.includes("429") || msg.toLowerCase().includes("quota") || msg.toLowerCase().includes("rate");
+      // OpenAIのレート制限・クォータ超過はどちらもHTTP 429で返る。メッセージの部分一致は
+      // "generated" 等に含まれる "rate" で誤判定するため使わない。
+      const isRateLimit = status === 429;
 
       if (attempt < MAX_RETRIES && isRetryableStatus(status)) {
         // レートリミット or 一時エラーはリトライ

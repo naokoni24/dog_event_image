@@ -143,6 +143,8 @@ function AdminMain({ password, onLogout }: { password: string; onLogout: () => v
   const [generatedImages, setGeneratedImages] = useState<GeneratedImage[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [genKey, setGenKey] = useState(0);
+  // 生成後に別イベントを選んでも、結果の見出し・保存ファイル名は生成時のイベント名のままにする。
+  const [generatedEventLabel, setGeneratedEventLabel] = useState("");
   const selectedEventConfig = EVENTS.find((e) => e.id === selectedEvent);
 
   async function fetchStats() {
@@ -191,6 +193,7 @@ function AdminMain({ password, onLogout }: { password: string; onLogout: () => v
 
     setIsGenerating(true);
     setGenKey(k => k + 1);
+    setGeneratedEventLabel(selectedEventConfig.label);
     setGeneratedImages([]);
 
     const initial: GeneratedImage[] = Array.from({ length: IMAGE_COUNT }, (_, i) => ({
@@ -333,12 +336,12 @@ function AdminMain({ password, onLogout }: { password: string; onLogout: () => v
         </button>
 
         {/* 生成結果 */}
-        {generatedImages.length > 0 && selectedEventConfig && (
+        {generatedImages.length > 0 && (
           <section className="bg-white rounded-3xl p-5 shadow border border-slate-200">
             <GeneratedImages
               key={genKey}
               images={generatedImages}
-              eventLabel={selectedEventConfig.label}
+              eventLabel={generatedEventLabel}
             />
           </section>
         )}
